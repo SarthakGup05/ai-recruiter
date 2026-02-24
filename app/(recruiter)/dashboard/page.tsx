@@ -51,16 +51,16 @@ const mockColumns: KanbanColumn[] = [
 
 export default function DashboardPage() {
     return (
-        <div className="space-y-8">
+        <div className="space-y-6 sm:space-y-8">
             {/* Header */}
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                 <div>
-                    <h1 className="text-2xl font-bold">Dashboard</h1>
-                    <p className="text-muted-foreground">
+                    <h1 className="text-xl sm:text-2xl font-bold">Dashboard</h1>
+                    <p className="text-sm sm:text-base text-muted-foreground">
                         Overview of your recruitment pipeline
                     </p>
                 </div>
-                <Button asChild className="gradient-bg border-0 text-white hover:opacity-90">
+                <Button asChild className="gradient-bg border-0 text-white hover:opacity-90 w-full sm:w-auto">
                     <Link href="/job/new">
                         <Plus className="mr-2 h-4 w-4" />
                         Post New Job
