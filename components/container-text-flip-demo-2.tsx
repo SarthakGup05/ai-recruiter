@@ -1,7 +1,7 @@
 "use client";
 import { ContainerTextFlip } from "@/components/ui/container-text-flip";
 import { motion } from "motion/react";
-import { cn } from "@/utils/cn";
+import { cn } from "@/lib/utils";
 
 export default function ContainerTextFlipDemo() {
   const words = ["better", "modern", "beautiful", "awesome"];

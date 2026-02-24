@@ -1,19 +1,9 @@
 "use client";
 
+import React, { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import {
-    Sidebar,
-    SidebarContent,
-    SidebarGroup,
-    SidebarGroupContent,
-    SidebarGroupLabel,
-    SidebarHeader,
-    SidebarMenu,
-    SidebarMenuButton,
-    SidebarMenuItem,
-    SidebarFooter,
-} from "@/components/ui/sidebar";
+import { Sidebar, SidebarBody, SidebarLink } from "@/components/ui/sidebar";
 import {
     BrainCircuit,
     LayoutDashboard,
@@ -22,16 +12,34 @@ import {
     Settings,
     LogOut,
 } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { motion } from "motion/react";
+import { cn } from "@/lib/utils";
 
 const navItems = [
-    { title: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
-    { title: "Jobs", href: "/dashboard", icon: Briefcase },
-    { title: "Candidates", href: "/dashboard", icon: Users },
-    { title: "Settings", href: "/dashboard", icon: Settings },
+    {
+        label: "Dashboard",
+        href: "/dashboard",
+        icon: <LayoutDashboard className="h-5 w-5 shrink-0 text-foreground/70" />,
+    },
+    {
+        label: "Jobs",
+        href: "/dashboard/jobs",
+        icon: <Briefcase className="h-5 w-5 shrink-0 text-foreground/70" />,
+    },
+    {
+        label: "Candidates",
+        href: "/dashboard/candidates",
+        icon: <Users className="h-5 w-5 shrink-0 text-foreground/70" />,
+    },
+    {
+        label: "Settings",
+        href: "/dashboard/settings",
+        icon: <Settings className="h-5 w-5 shrink-0 text-foreground/70" />,
+    },
 ];
 
 export function AppSidebar() {
+    const [open, setOpen] = useState(false);
     const pathname = usePathname();
 
     const handleLogout = async () => {
@@ -40,51 +48,57 @@ export function AppSidebar() {
     };
 
     return (
-        <Sidebar>
-            <SidebarHeader className="p-4">
-                <Link href="/dashboard" className="flex items-center gap-2">
-                    <div className="flex h-9 w-9 items-center justify-center rounded-lg gradient-bg">
-                        <BrainCircuit className="h-5 w-5 text-white" />
+        <Sidebar open={open} setOpen={setOpen} animate={true}>
+            <SidebarBody className="justify-between gap-10">
+                {/* Top section: Logo + Nav */}
+                <div className="flex flex-1 flex-col overflow-x-hidden overflow-y-auto">
+                    {/* Brand Logo */}
+                    <Link href="/dashboard" className="relative z-20 flex items-center gap-2 py-1">
+                        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary">
+                            <BrainCircuit className="h-5 w-5 text-primary-foreground" />
+                        </div>
+                        <motion.span
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: open ? 1 : 0 }}
+                            className="font-bold text-lg whitespace-pre text-foreground"
+                        >
+                            Hire<span className="text-primary">AI</span>
+                        </motion.span>
+                    </Link>
+
+                    {/* Navigation Links */}
+                    <div className="mt-8 flex flex-col gap-1">
+                        {navItems.map((item) => (
+                            <SidebarLink
+                                key={item.label}
+                                link={item}
+                                className={cn(
+                                    "rounded-lg px-2 py-2 hover:bg-primary/10",
+                                    pathname === item.href &&
+                                    "bg-primary/10 text-primary font-medium"
+                                )}
+                            />
+                        ))}
                     </div>
-                    <span className="text-lg font-bold tracking-tight">
-                        Hire<span className="gradient-text">AI</span>
-                    </span>
-                </Link>
-            </SidebarHeader>
+                </div>
 
-            <SidebarContent>
-                <SidebarGroup>
-                    <SidebarGroupLabel>Navigation</SidebarGroupLabel>
-                    <SidebarGroupContent>
-                        <SidebarMenu>
-                            {navItems.map((item) => (
-                                <SidebarMenuItem key={item.title}>
-                                    <SidebarMenuButton
-                                        asChild
-                                        isActive={pathname === item.href}
-                                    >
-                                        <Link href={item.href}>
-                                            <item.icon className="h-4 w-4" />
-                                            <span>{item.title}</span>
-                                        </Link>
-                                    </SidebarMenuButton>
-                                </SidebarMenuItem>
-                            ))}
-                        </SidebarMenu>
-                    </SidebarGroupContent>
-                </SidebarGroup>
-            </SidebarContent>
-
-            <SidebarFooter className="p-3">
-                <Button
-                    variant="ghost"
-                    className="w-full justify-start gap-2 text-muted-foreground hover:text-destructive"
-                    onClick={handleLogout}
-                >
-                    <LogOut className="h-4 w-4" />
-                    Sign Out
-                </Button>
-            </SidebarFooter>
+                {/* Bottom section: Logout */}
+                <div className="border-t border-border pt-4">
+                    <button
+                        onClick={handleLogout}
+                        className="flex w-full items-center gap-2 rounded-lg px-2 py-2 text-sm text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors"
+                    >
+                        <LogOut className="h-5 w-5 shrink-0" />
+                        <motion.span
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: open ? 1 : 0 }}
+                            className="whitespace-pre"
+                        >
+                            Sign Out
+                        </motion.span>
+                    </button>
+                </div>
+            </SidebarBody>
         </Sidebar>
     );
 }
