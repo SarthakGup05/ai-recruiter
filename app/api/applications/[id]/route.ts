@@ -1,45 +1,44 @@
 import { NextRequest, NextResponse } from "next/server";
+import { db } from "@/utils/db";
+import { applications } from "@/utils/db/schema";
+import { eq } from "drizzle-orm";
 
 export async function GET(
   _request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
-  const { id } = await params;
+  try {
+    const { id } = await params;
 
-  // Stub: return mock application data
-  const application = {
-    id,
-    jobId: "1",
-    candidateName: "Sarah Chen",
-    email: "sarah@example.com",
-    phone: "+1 (555) 123-4567",
-    linkedinUrl: "linkedin.com/in/sarahchen",
-    cvUrl: "/uploads/sarah-chen-cv.pdf",
-    matchScore: 92,
-    status: "interviewed",
-    cvParsedData: {
-      skills: ["React", "TypeScript", "Next.js"],
-      experience: [
-        {
-          title: "Senior Frontend Engineer",
-          company: "TechCorp",
-          duration: "3 years",
-        },
-      ],
-    },
-    createdAt: "2026-02-20T00:00:00Z",
-  };
+    const [application] = await db
+      .select()
+      .from(applications)
+      .where(eq(applications.id, id))
+      .limit(1);
 
-  return NextResponse.json({ application });
+    if (!application) {
+      return NextResponse.json(
+        { error: "Application not found" },
+        { status: 404 },
+      );
+    }
+
+    return NextResponse.json({ application });
+  } catch (error) {
+    console.error("Get application error:", error);
+    return NextResponse.json(
+      { error: "Failed to fetch application" },
+      { status: 500 },
+    );
+  }
 }
 
 export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
-  const { id } = await params;
-
   try {
+    const { id } = await params;
     const body = await request.json();
     const { status } = body;
 
@@ -62,9 +61,31 @@ export async function PATCH(
       );
     }
 
-    return NextResponse.json({
-      application: { id, ...body, updatedAt: new Date().toISOString() },
-    });
+    const [existing] = await db
+      .select({ id: applications.id })
+      .from(applications)
+      .where(eq(applications.id, id))
+      .limit(1);
+
+    if (!existing) {
+      return NextResponse.json(
+        { error: "Application not found" },
+        { status: 404 },
+      );
+    }
+
+    const [updated] = await db
+      .update(applications)
+      .set({
+        ...(status && { status }),
+        ...(body.matchScore !== undefined && {
+          matchScore: Number(body.matchScore),
+        }),
+      })
+      .where(eq(applications.id, id))
+      .returning();
+
+    return NextResponse.json({ application: updated });
   } catch (error) {
     console.error("Update application error:", error);
     return NextResponse.json(

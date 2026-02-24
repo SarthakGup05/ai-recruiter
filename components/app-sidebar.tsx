@@ -11,6 +11,7 @@ import {
     Users,
     Settings,
     LogOut,
+    Plus,
 } from "lucide-react";
 import { motion } from "motion/react";
 import { cn } from "@/lib/utils";
@@ -66,8 +67,26 @@ export function AppSidebar() {
                         </motion.span>
                     </Link>
 
+                    {/* Post New Job Button */}
+                    <Link
+                        href="/job/new"
+                        className={cn(
+                            "mt-6 flex items-center gap-2 rounded-lg gradient-bg text-white transition-all hover:opacity-90",
+                            open ? "px-3 py-2.5 justify-start" : "p-2 justify-center"
+                        )}
+                    >
+                        <Plus className="h-5 w-5 shrink-0" />
+                        <motion.span
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: open ? 1 : 0 }}
+                            className="text-sm font-semibold whitespace-pre"
+                        >
+                            Post New Job
+                        </motion.span>
+                    </Link>
+
                     {/* Navigation Links */}
-                    <div className="mt-8 flex flex-col gap-1">
+                    <div className="mt-4 flex flex-col gap-1">
                         {navItems.map((item) => (
                             <SidebarLink
                                 key={item.label}

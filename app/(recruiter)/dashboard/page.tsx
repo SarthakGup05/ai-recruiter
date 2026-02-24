@@ -1,55 +1,125 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { StatCard } from "@/components/stat-card";
 import { KanbanBoard, type KanbanColumn } from "@/components/kanban-board";
 import { Briefcase, Users, CalendarCheck, TrendingUp, Plus } from "lucide-react";
+import { getCurrentUser } from "@/lib/auth";
+import { db } from "@/utils/db";
+import { jobs, applications, interviews } from "@/utils/db/schema";
+import { eq, count, avg, sql, and, inArray } from "drizzle-orm";
 
-// Mock data for demonstration
-const mockColumns: KanbanColumn[] = [
-    {
-        id: "applied",
-        title: "Applied",
-        color: "#6366f1",
-        candidates: [
-            { id: "1", name: "Sarah Chen", email: "sarah@example.com", score: 92, appliedAt: "2h ago" },
-            { id: "2", name: "James Wilson", email: "james@example.com", score: 78, appliedAt: "5h ago" },
-            { id: "3", name: "Maria Garcia", email: "maria@example.com", appliedAt: "1d ago" },
-        ],
-    },
-    {
-        id: "matched",
-        title: "Matched",
-        color: "#8b5cf6",
-        candidates: [
-            { id: "4", name: "Alex Park", email: "alex@example.com", score: 88, appliedAt: "1d ago" },
-            { id: "5", name: "Emily Brown", email: "emily@example.com", score: 85, appliedAt: "2d ago" },
-        ],
-    },
-    {
-        id: "scheduled",
-        title: "Scheduled",
-        color: "#06b6d4",
-        candidates: [
-            { id: "6", name: "David Kim", email: "david@example.com", score: 91, appliedAt: "3d ago" },
-        ],
-    },
-    {
-        id: "interviewed",
-        title: "Interviewed",
-        color: "#10b981",
-        candidates: [
-            { id: "7", name: "Lisa Wang", email: "lisa@example.com", score: 95, appliedAt: "5d ago" },
-        ],
-    },
-    {
-        id: "decision",
-        title: "Decision",
-        color: "#f59e0b",
-        candidates: [],
-    },
-];
+const PIPELINE_STATUSES = [
+    { id: "applied", title: "Applied", color: "#6366f1" },
+    { id: "matched", title: "Matched", color: "#8b5cf6" },
+    { id: "scheduled", title: "Scheduled", color: "#06b6d4" },
+    { id: "interviewed", title: "Interviewed", color: "#10b981" },
+    { id: "decision", title: "Decision", color: "#f59e0b" },
+] as const;
 
-export default function DashboardPage() {
+export default async function DashboardPage() {
+    const user = await getCurrentUser();
+    if (!user) redirect("/login");
+
+    // ── Fetch all stats in parallel ──────────────────────────────────────────
+    const userJobIds = db
+        .select({ id: jobs.id })
+        .from(jobs)
+        .where(eq(jobs.recruiterId, user.id));
+
+    const [
+        jobStats,
+        applicationStats,
+        interviewStats,
+        avgScoreResult,
+        pipelineData,
+    ] = await Promise.all([
+        // Total jobs + active jobs
+        db
+            .select({
+                total: count(),
+                active: sql<number>`cast(count(*) filter (where ${jobs.status} = 'active') as int)`,
+            })
+            .from(jobs)
+            .where(eq(jobs.recruiterId, user.id)),
+
+        // Total applications for this recruiter's jobs
+        db
+            .select({ total: count() })
+            .from(applications)
+            .where(inArray(applications.jobId, userJobIds)),
+
+        // Completed interviews
+        db
+            .select({
+                completed: sql<number>`cast(count(*) filter (where ${interviews.status} = 'completed') as int)`,
+                scheduled: sql<number>`cast(count(*) filter (where ${interviews.status} = 'pending') as int)`,
+            })
+            .from(interviews)
+            .innerJoin(applications, eq(interviews.applicationId, applications.id))
+            .where(inArray(applications.jobId, userJobIds)),
+
+        // Average match score
+        db
+            .select({ avg: avg(applications.matchScore) })
+            .from(applications)
+            .where(
+                and(
+                    inArray(applications.jobId, userJobIds),
+                    sql`${applications.matchScore} is not null`,
+                ),
+            ),
+
+        // Pipeline: applications grouped by status for kanban
+        db
+            .select({
+                id: applications.id,
+                name: applications.candidateName,
+                email: applications.email,
+                score: applications.matchScore,
+                status: applications.status,
+                createdAt: applications.createdAt,
+            })
+            .from(applications)
+            .where(inArray(applications.jobId, userJobIds)),
+    ]);
+
+    // ── Derive stat card values ──────────────────────────────────────────────
+    const totalJobs = jobStats[0]?.total ?? 0;
+    const activeJobs = jobStats[0]?.active ?? 0;
+    const totalApps = applicationStats[0]?.total ?? 0;
+    const completedInterviews = interviewStats[0]?.completed ?? 0;
+    const scheduledInterviews = interviewStats[0]?.scheduled ?? 0;
+    const avgScore = avgScoreResult[0]?.avg
+        ? `${Math.round(Number(avgScoreResult[0].avg))}%`
+        : "—";
+
+    // ── Build kanban columns ─────────────────────────────────────────────────
+    function timeAgo(date: Date): string {
+        const diff = Date.now() - date.getTime();
+        const mins = Math.floor(diff / 60000);
+        if (mins < 60) return `${mins}m ago`;
+        const hours = Math.floor(mins / 60);
+        if (hours < 24) return `${hours}h ago`;
+        const days = Math.floor(hours / 24);
+        return `${days}d ago`;
+    }
+
+    const columns: KanbanColumn[] = PIPELINE_STATUSES.map((col) => ({
+        id: col.id,
+        title: col.title,
+        color: col.color,
+        candidates: pipelineData
+            .filter((app) => app.status === col.id)
+            .map((app) => ({
+                id: app.id,
+                name: app.name,
+                email: app.email,
+                score: app.score ?? undefined,
+                appliedAt: timeAgo(new Date(app.createdAt)),
+            })),
+    }));
+
     return (
         <div className="space-y-6 sm:space-y-8">
             {/* Header */}
@@ -72,38 +142,32 @@ export default function DashboardPage() {
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
                 <StatCard
                     title="Total Jobs"
-                    value={12}
-                    subtitle="3 active"
+                    value={totalJobs}
+                    subtitle={`${activeJobs} active`}
                     icon={Briefcase}
-                    trend={{ value: 8, positive: true }}
                 />
                 <StatCard
-                    title="Active Applications"
-                    value={48}
-                    subtitle="12 this week"
+                    title="Applications"
+                    value={totalApps}
                     icon={Users}
-                    trend={{ value: 23, positive: true }}
                 />
                 <StatCard
                     title="Interviews Done"
-                    value={18}
-                    subtitle="5 scheduled"
+                    value={completedInterviews}
+                    subtitle={`${scheduledInterviews} scheduled`}
                     icon={CalendarCheck}
-                    trend={{ value: 12, positive: true }}
                 />
                 <StatCard
                     title="Avg. Match Score"
-                    value="82%"
-                    subtitle="Above industry avg"
+                    value={avgScore}
                     icon={TrendingUp}
-                    trend={{ value: 5, positive: true }}
                 />
             </div>
 
             {/* Kanban Board */}
             <div>
                 <h2 className="mb-4 text-lg font-semibold">Candidate Pipeline</h2>
-                <KanbanBoard columns={mockColumns} />
+                <KanbanBoard columns={columns} />
             </div>
         </div>
     );
