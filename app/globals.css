@@ -208,3 +208,17 @@
     animation: slide-up 0.6s ease-out forwards;
   }
 }
+
+/* Custom Timeline Animation */
+@keyframes shimmer-line {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(200%);
+  }
+}
+
+.animate-timeline-shimmer {
+  animation: shimmer-line 2.5s infinite linear;
+}
