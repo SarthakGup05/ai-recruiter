@@ -27,6 +27,7 @@ export default async function DashboardPage() {
         .from(jobs)
         .where(eq(jobs.recruiterId, user.id));
 
+    // ── Fetch all stats ─────────────────────────────────────────────────────
     const [
         jobStats,
         applicationStats,
@@ -47,9 +48,10 @@ export default async function DashboardPage() {
         db
             .select({ total: count() })
             .from(applications)
-            .where(inArray(applications.jobId, userJobIds)),
+            .innerJoin(jobs, eq(applications.jobId, jobs.id))
+            .where(eq(jobs.recruiterId, user.id)),
 
-        // Completed interviews
+        // Completed/Scheduled interviews
         db
             .select({
                 completed: sql<number>`cast(count(*) filter (where ${interviews.status} = 'completed') as int)`,
@@ -57,15 +59,17 @@ export default async function DashboardPage() {
             })
             .from(interviews)
             .innerJoin(applications, eq(interviews.applicationId, applications.id))
-            .where(inArray(applications.jobId, userJobIds)),
+            .innerJoin(jobs, eq(applications.jobId, jobs.id))
+            .where(eq(jobs.recruiterId, user.id)),
 
         // Average match score
         db
             .select({ avg: avg(applications.matchScore) })
             .from(applications)
+            .innerJoin(jobs, eq(applications.jobId, jobs.id))
             .where(
                 and(
-                    inArray(applications.jobId, userJobIds),
+                    eq(jobs.recruiterId, user.id),
                     sql`${applications.matchScore} is not null`,
                 ),
             ),
@@ -81,7 +85,8 @@ export default async function DashboardPage() {
                 createdAt: applications.createdAt,
             })
             .from(applications)
-            .where(inArray(applications.jobId, userJobIds)),
+            .innerJoin(jobs, eq(applications.jobId, jobs.id))
+            .where(eq(jobs.recruiterId, user.id)),
     ]);
 
     // ── Derive stat card values ──────────────────────────────────────────────

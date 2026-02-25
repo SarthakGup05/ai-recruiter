@@ -3,6 +3,7 @@ import { db } from "@/utils/db";
 import { jobs, applications } from "@/utils/db/schema";
 import { eq, and, sql } from "drizzle-orm";
 import { getCurrentUser } from "@/lib/auth";
+import { revalidatePath } from "next/cache";
 
 export async function GET(
   _request: NextRequest,
@@ -113,6 +114,7 @@ export async function PATCH(
       .where(eq(jobs.id, id))
       .returning();
 
+    revalidatePath("/dashboard");
     return NextResponse.json({ job: updated });
   } catch (error) {
     console.error("Update job error:", error);
@@ -145,6 +147,8 @@ export async function DELETE(
     if (!archived) {
       return NextResponse.json({ error: "Job not found" }, { status: 404 });
     }
+
+    revalidatePath("/dashboard");
 
     return NextResponse.json({
       success: true,

@@ -3,6 +3,7 @@ import { db } from "@/utils/db";
 import { interviews, applications, jobs } from "@/utils/db/schema";
 import { eq, and, desc } from "drizzle-orm";
 import { randomUUID } from "crypto";
+import { revalidatePath } from "next/cache";
 
 export async function POST(request: NextRequest) {
   try {
@@ -57,6 +58,8 @@ export async function POST(request: NextRequest) {
       .update(applications)
       .set({ status: "scheduled" })
       .where(eq(applications.id, applicationId));
+
+    revalidatePath("/dashboard");
 
     return NextResponse.json(
       {

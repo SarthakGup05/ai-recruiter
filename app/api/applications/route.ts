@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/utils/db";
 import { applications, jobs } from "@/utils/db/schema";
 import { eq } from "drizzle-orm";
+import { revalidatePath } from "next/cache";
 
 export async function POST(request: NextRequest) {
   try {
@@ -44,6 +45,8 @@ export async function POST(request: NextRequest) {
         status: "applied",
       })
       .returning();
+
+    revalidatePath("/dashboard");
 
     return NextResponse.json({ application }, { status: 201 });
   } catch (error) {

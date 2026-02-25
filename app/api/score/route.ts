@@ -2,7 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/utils/db";
 import { applications, jobs } from "@/utils/db/schema";
 import { eq } from "drizzle-orm";
+import { revalidatePath } from "next/cache";
 import { calculateMatchScore } from "@/lib/ai/scoring";
+import { parseJobDescription } from "@/lib/ai/parse-jd";
 import type { ParsedCV } from "@/lib/ai/parse-cv";
 import type { ParsedJD } from "@/lib/ai/parse-jd";
 
@@ -50,17 +52,32 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Job not found" }, { status: 404 });
     }
 
-    if (!job.parsedJd) {
-      return NextResponse.json(
-        { error: "Job description has not been parsed yet." },
-        { status: 400 },
-      );
+    // If JD hasn't been parsed yet, try to parse it now
+    let parsedJd = job.parsedJd as unknown as ParsedJD | null;
+    if (!parsedJd) {
+      try {
+        parsedJd = await parseJobDescription({
+          title: job.title,
+          description: job.description,
+          requirements: job.requirements,
+          responsibilities: job.responsibilities,
+        });
+        // Save for future use
+        await db.update(jobs).set({ parsedJd }).where(eq(jobs.id, job.id));
+      } catch (parseErr) {
+        console.error("On-demand JD parse failed:", parseErr);
+        return NextResponse.json(
+          {
+            error: "Job description could not be parsed. Check GEMINI_API_KEY.",
+          },
+          { status: 500 },
+        );
+      }
     }
 
     // Run scoring engine
     const parsedCv = application.cvParsedData as unknown as ParsedCV;
-    const parsedJd = job.parsedJd as unknown as ParsedJD;
-    const result = calculateMatchScore(parsedCv, parsedJd);
+    const result = calculateMatchScore(parsedCv, parsedJd!);
 
     // Determine new status based on threshold
     const newStatus =
@@ -78,6 +95,8 @@ export async function POST(request: NextRequest) {
       })
       .where(eq(applications.id, applicationId))
       .returning();
+
+    revalidatePath("/dashboard");
 
     return NextResponse.json({
       application: updated,

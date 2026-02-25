@@ -4,6 +4,7 @@ import { jobs, applications } from "@/utils/db/schema";
 import { eq, desc, sql, count } from "drizzle-orm";
 import { getCurrentUser } from "@/lib/auth";
 import { parseJobDescription } from "@/lib/ai/parse-jd";
+import { revalidatePath } from "next/cache";
 
 export async function GET() {
   try {
@@ -115,6 +116,8 @@ export async function POST(request: NextRequest) {
       .catch((err) => {
         console.error("Background JD parse failed:", err);
       });
+
+    revalidatePath("/dashboard");
 
     return NextResponse.json({ job: newJob }, { status: 201 });
   } catch (error) {
