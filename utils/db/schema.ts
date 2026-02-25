@@ -86,6 +86,14 @@ export const jobs = pgTable("jobs", {
   matchThreshold: integer("match_threshold").notNull().default(75),
   interviewDuration: integer("interview_duration").notNull().default(30),
   customQuestions: jsonb("custom_questions").$type<string[]>(),
+  parsedJd: jsonb("parsed_jd").$type<{
+    required_skills: string[];
+    preferred_skills: string[];
+    experience_years: number;
+    education_level: string;
+    soft_skills: string[];
+    key_responsibilities: string[];
+  }>(),
   status: jobStatusEnum("status").notNull().default("draft"),
   publicSlug: varchar("public_slug", { length: 64 }).unique(),
   createdAt: timestamp("created_at", { withTimezone: true })
@@ -106,11 +114,31 @@ export const applications = pgTable("applications", {
   cvParsedData: jsonb("cv_parsed_data").$type<{
     name?: string;
     email?: string;
+    phone?: string;
     skills?: string[];
-    experience?: { title: string; company: string; duration: string }[];
+    experience?: {
+      title: string;
+      company: string;
+      duration: string;
+      years: number;
+    }[];
     education?: { degree: string; institution: string; year: string }[];
+    soft_indicators?: string[];
   }>(),
   matchScore: integer("match_score"),
+  matchBreakdown: jsonb("match_breakdown").$type<{
+    skills: {
+      score: number;
+      weight: number;
+      matched: string[];
+      missing: string[];
+    };
+    experience: { score: number; weight: number; reasoning: string };
+    education: { score: number; weight: number; reasoning: string };
+    soft_skills: { score: number; weight: number; reasoning: string };
+  }>(),
+  matchReasoning: text("match_reasoning"),
+  redFlags: jsonb("red_flags").$type<string[]>(),
   status: applicationStatusEnum("status").notNull().default("applied"),
   createdAt: timestamp("created_at", { withTimezone: true })
     .notNull()
@@ -125,6 +153,8 @@ export const interviews = pgTable("interviews", {
   token: varchar("token", { length: 128 }).notNull().unique(),
   status: interviewStatusEnum("status").notNull().default("pending"),
   scheduledAt: timestamp("scheduled_at", { withTimezone: true }),
+  startedAt: timestamp("started_at", { withTimezone: true }),
+  completedAt: timestamp("completed_at", { withTimezone: true }),
   duration: integer("duration"),
   transcript:
     jsonb("transcript").$type<
@@ -146,6 +176,9 @@ export const evaluations = pgTable("evaluations", {
   overallScore: integer("overall_score"),
   strengths: jsonb("strengths").$type<string[]>(),
   concerns: jsonb("concerns").$type<string[]>(),
+  redFlags: jsonb("red_flags").$type<string[]>(),
+  notableQuotes:
+    jsonb("notable_quotes").$type<{ quote: string; context: string }[]>(),
   recommendation: recommendationEnum("recommendation"),
   report: text("report"),
   createdAt: timestamp("created_at", { withTimezone: true })
