@@ -23,12 +23,11 @@ export interface ParsedCV {
  * Extract text from a PDF file buffer.
  */
 async function extractPdfText(buffer: Buffer): Promise<string> {
-  // pdf-parse is CJS — handle both default and named export patterns
-  const mod = await import("pdf-parse");
-  const pdfParse = typeof mod === "function" ? mod : (mod.default ?? mod);
-  const data = await (pdfParse as (buf: Buffer) => Promise<{ text: string }>)(
-    buffer,
-  );
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const pdfParse = require("pdf-parse") as (
+    buf: Buffer,
+  ) => Promise<{ text: string }>;
+  const data = await pdfParse(buffer);
   return data.text;
 }
 
