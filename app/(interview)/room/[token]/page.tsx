@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
+import { useParams, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -13,6 +14,7 @@ import {
     Clock,
     User,
     Briefcase,
+    AlertTriangle,
 } from "lucide-react";
 
 type Message = {
@@ -22,14 +24,13 @@ type Message = {
     timestamp: string;
 };
 
-const aiResponses = [
-    "That's a great point. Could you tell me more about your experience with React and how you've applied it in production environments?",
-    "Interesting. What would you say is your biggest technical achievement in the past year?",
-    "I see. How do you approach debugging a complex production issue when you're under time pressure?",
-    "Thank you for sharing that. Let's move on to a team-oriented question — how do you handle disagreements with colleagues about technical decisions?",
-    "That's very insightful. One last question — what's the most challenging project you've worked on and what did you learn from it?",
-    "Excellent. Thank you so much for your time today. We'll be in touch with the results shortly. Do you have any questions for us?",
-];
+type InterviewMeta = {
+    jobTitle: string;
+    department: string;
+    duration: number;
+    candidateName: string;
+    status: string;
+};
 
 function formatTime(date: Date) {
     return date.toLocaleTimeString("en-US", {
@@ -39,28 +40,27 @@ function formatTime(date: Date) {
 }
 
 export default function InterviewRoomPage() {
-    const [messages, setMessages] = useState<Message[]>([
-        {
-            id: "1",
-            role: "ai",
-            content:
-                "Hello! Welcome to your interview for the Senior Frontend Engineer position. I'm your AI interviewer today. Before we begin, could you please introduce yourself and tell me a little about your background?",
-            timestamp: formatTime(new Date()),
-        },
-    ]);
-    const [input, setInput] = useState("");
-    const [status, setStatus] = useState<"waiting" | "in_progress" | "completed">("in_progress");
-    const [aiResponseIndex, setAiResponseIndex] = useState(0);
-    const [isTyping, setIsTyping] = useState(false);
-    const scrollRef = useRef<HTMLDivElement>(null);
-    const [elapsed, setElapsed] = useState(0);
+    const { token } = useParams();
+    const router = useRouter();
 
-    // Timer
-    useEffect(() => {
-        if (status !== "in_progress") return;
-        const interval = setInterval(() => setElapsed((p) => p + 1), 1000);
-        return () => clearInterval(interval);
-    }, [status]);
+    const [messages, setMessages] = useState<Message[]>([]);
+    const [input, setInput] = useState("");
+    const [status, setStatus] = useState<"loading" | "waiting" | "in_progress" | "completed" | "error">("loading");
+    const [isTyping, setIsTyping] = useState(false);
+    const [elapsed, setElapsed] = useState(0);
+    const [meta, setMeta] = useState<InterviewMeta>({
+        jobTitle: "Loading...",
+        department: "",
+        duration: 30,
+        candidateName: "Candidate",
+        status: "pending",
+    });
+    const [questionCount, setQuestionCount] = useState(0);
+    const [endingInterview, setEndingInterview] = useState(false);
+    const [error, setError] = useState<string | null>(null);
+
+    const scrollRef = useRef<HTMLDivElement>(null);
+    const initialized = useRef(false);
 
     // Auto-scroll
     useEffect(() => {
@@ -70,19 +70,104 @@ export default function InterviewRoomPage() {
         });
     }, [messages, isTyping]);
 
+    // Timer
+    useEffect(() => {
+        if (status !== "in_progress") return;
+        const interval = setInterval(() => setElapsed((p) => p + 1), 1000);
+        return () => clearInterval(interval);
+    }, [status]);
+
     const formatElapsed = (s: number) => {
         const m = Math.floor(s / 60);
         const sec = s % 60;
         return `${m.toString().padStart(2, "0")}:${sec.toString().padStart(2, "0")}`;
     };
 
-    function handleSend() {
-        if (!input.trim() || status === "completed") return;
+    // Duration warning — flash when 80% time used
+    const timeWarning = meta.duration > 0 && elapsed >= meta.duration * 60 * 0.8;
+    const timeUp = meta.duration > 0 && elapsed >= meta.duration * 60;
 
+    // Initialize interview — fetch opening message
+    const initInterview = useCallback(async () => {
+        if (initialized.current) return;
+        initialized.current = true;
+
+        try {
+            // First, fetch interview metadata
+            const metaRes = await fetch(`/api/interviews/by-token?token=${token}`);
+            if (metaRes.ok) {
+                const metaData = await metaRes.json();
+                if (metaData.interview) {
+                    setMeta({
+                        jobTitle: metaData.job?.title || "Position",
+                        department: metaData.job?.department || "",
+                        duration: metaData.interview.duration || 30,
+                        candidateName: metaData.application?.candidateName || "Candidate",
+                        status: metaData.interview.status,
+                    });
+
+                    // If already completed, show completed state
+                    if (metaData.interview.status === "completed") {
+                        setStatus("completed");
+                        // Load existing transcript
+                        if (metaData.interview.transcript) {
+                            setMessages(
+                                metaData.interview.transcript.map((t: { speaker: string; text: string; timestamp: string }, i: number) => ({
+                                    id: `existing-${i}`,
+                                    role: t.speaker === "ai" ? "ai" : "candidate",
+                                    content: t.text,
+                                    timestamp: new Date(t.timestamp).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" }),
+                                }))
+                            );
+                        }
+                        return;
+                    }
+                }
+            }
+
+            // Get opening message from AI
+            const res = await fetch("/api/ai-chat", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ token }),
+            });
+
+            if (!res.ok) {
+                const data = await res.json();
+                throw new Error(data.error || "Failed to start interview");
+            }
+
+            const data = await res.json();
+            setMessages([
+                {
+                    id: "opening",
+                    role: "ai",
+                    content: data.content,
+                    timestamp: formatTime(new Date()),
+                },
+            ]);
+            setQuestionCount(1);
+            setStatus("in_progress");
+        } catch (err) {
+            console.error("Init error:", err);
+            setError(err instanceof Error ? err.message : "Failed to connect");
+            setStatus("error");
+        }
+    }, [token]);
+
+    useEffect(() => {
+        initInterview();
+    }, [initInterview]);
+
+    // Send message
+    async function handleSend() {
+        if (!input.trim() || status === "completed" || isTyping) return;
+
+        const userMessage = input.trim();
         const userMsg: Message = {
             id: Date.now().toString(),
             role: "candidate",
-            content: input.trim(),
+            content: userMessage,
             timestamp: formatTime(new Date()),
         };
 
@@ -90,28 +175,103 @@ export default function InterviewRoomPage() {
         setInput("");
         setIsTyping(true);
 
-        // Simulate AI response
-        setTimeout(() => {
-            const response =
-                aiResponseIndex < aiResponses.length
-                    ? aiResponses[aiResponseIndex]
-                    : "Thank you for your answers. This concludes our interview. We'll be reviewing your responses and will get back to you soon.";
+        try {
+            const res = await fetch("/api/ai-chat", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ token, message: userMessage }),
+            });
 
+            if (!res.ok) {
+                throw new Error("Failed to get AI response");
+            }
+
+            const data = await res.json();
             const aiMsg: Message = {
                 id: (Date.now() + 1).toString(),
                 role: "ai",
-                content: response,
+                content: data.content,
                 timestamp: formatTime(new Date()),
             };
 
             setMessages((prev) => [...prev, aiMsg]);
-            setAiResponseIndex((prev) => prev + 1);
+            setQuestionCount((prev) => prev + 1);
+        } catch (err) {
+            console.error("Chat error:", err);
+            setMessages((prev) => [
+                ...prev,
+                {
+                    id: (Date.now() + 1).toString(),
+                    role: "ai",
+                    content: "I encountered an issue. Could you please repeat your last answer?",
+                    timestamp: formatTime(new Date()),
+                },
+            ]);
+        } finally {
             setIsTyping(false);
+        }
+    }
 
-            if (aiResponseIndex >= aiResponses.length - 1) {
-                setStatus("completed");
+    // End interview
+    async function handleEndInterview() {
+        setEndingInterview(true);
+        try {
+            // Update interview status to completed
+            const metaRes = await fetch(`/api/interviews/by-token?token=${token}`);
+            if (metaRes.ok) {
+                const metaData = await metaRes.json();
+                if (metaData.interview) {
+                    // Mark completed
+                    await fetch(`/api/interviews/${metaData.interview.id}`, {
+                        method: "PATCH",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ status: "completed" }),
+                    });
+
+                    // Trigger evaluation in background
+                    fetch("/api/evaluate", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ interviewId: metaData.interview.id }),
+                    }).catch(console.error);
+                }
             }
-        }, 1500 + Math.random() * 1000);
+
+            setStatus("completed");
+        } catch (err) {
+            console.error("End interview error:", err);
+        } finally {
+            setEndingInterview(false);
+        }
+    }
+
+    // Estimated progress based on time
+    const progressPercent = meta.duration > 0
+        ? Math.min((elapsed / (meta.duration * 60)) * 100, 100)
+        : Math.min((questionCount / 8) * 100, 100);
+
+    if (status === "loading") {
+        return (
+            <div className="flex h-screen items-center justify-center bg-background">
+                <div className="text-center space-y-4">
+                    <div className="animate-spin h-10 w-10 border-4 border-primary border-t-transparent rounded-full mx-auto" />
+                    <p className="text-muted-foreground">Preparing your interview...</p>
+                </div>
+            </div>
+        );
+    }
+
+    if (status === "error") {
+        return (
+            <div className="flex h-screen items-center justify-center bg-background">
+                <div className="text-center space-y-4 max-w-md px-6">
+                    <AlertTriangle className="h-12 w-12 text-destructive mx-auto" />
+                    <h2 className="text-xl font-semibold">Unable to Start Interview</h2>
+                    <p className="text-muted-foreground">{error}</p>
+                    <Button onClick={() => window.location.reload()}>Try Again</Button>
+                </div>
+            </div>
+        );
     }
 
     return (
@@ -125,7 +285,7 @@ export default function InterviewRoomPage() {
                     <div>
                         <h1 className="text-sm font-semibold">AI Interview</h1>
                         <p className="text-xs text-muted-foreground">
-                            Senior Frontend Engineer
+                            {meta.jobTitle}
                         </p>
                     </div>
                 </div>
@@ -136,9 +296,7 @@ export default function InterviewRoomPage() {
                         className={
                             status === "in_progress"
                                 ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400"
-                                : status === "completed"
-                                    ? "bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400"
-                                    : "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400"
+                                : "bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400"
                         }
                     >
                         <span className="relative mr-1.5 flex h-2 w-2">
@@ -146,26 +304,25 @@ export default function InterviewRoomPage() {
                                 <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
                             )}
                             <span
-                                className={`relative inline-flex h-2 w-2 rounded-full ${status === "in_progress"
-                                        ? "bg-emerald-500"
-                                        : status === "completed"
-                                            ? "bg-zinc-400"
-                                            : "bg-yellow-500"
-                                    }`}
+                                className={`relative inline-flex h-2 w-2 rounded-full ${status === "in_progress" ? "bg-emerald-500" : "bg-zinc-400"}`}
                             />
                         </span>
-                        {status === "in_progress"
-                            ? "In Progress"
-                            : status === "completed"
-                                ? "Completed"
-                                : "Waiting"}
+                        {status === "in_progress" ? "In Progress" : "Completed"}
                     </Badge>
-                    <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
+                    <div className={`flex items-center gap-1.5 text-sm ${timeWarning ? "text-amber-500 font-medium" : timeUp ? "text-red-500 font-bold" : "text-muted-foreground"}`}>
                         <Clock className="h-4 w-4" />
                         {formatElapsed(elapsed)}
+                        <span className="text-xs opacity-60">/ {meta.duration}m</span>
                     </div>
                 </div>
             </header>
+
+            {/* Time warning banner */}
+            {timeWarning && status === "in_progress" && (
+                <div className={`px-4 py-1.5 text-xs text-center font-medium ${timeUp ? "bg-red-500/20 text-red-400" : "bg-amber-500/20 text-amber-400"}`}>
+                    {timeUp ? "⏰ Time is up! Please wrap up the interview." : "⏳ Less than 20% of your interview time remaining."}
+                </div>
+            )}
 
             <div className="flex flex-1 overflow-hidden">
                 {/* Chat Panel */}
@@ -193,6 +350,18 @@ export default function InterviewRoomPage() {
                                     <span className="animate-bounce [animation-delay:150ms]">●</span>
                                     <span className="animate-bounce [animation-delay:300ms]">●</span>
                                 </span>
+                            </div>
+                        )}
+
+                        {/* Completed banner */}
+                        {status === "completed" && (
+                            <div className="text-center py-6 space-y-3">
+                                <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-muted text-sm text-muted-foreground">
+                                    ✅ Interview completed
+                                </div>
+                                <p className="text-xs text-muted-foreground">
+                                    Your responses are being evaluated. You&apos;ll hear back from the recruiter soon.
+                                </p>
                             </div>
                         )}
                     </div>
@@ -224,10 +393,11 @@ export default function InterviewRoomPage() {
                                 <Button
                                     variant="destructive"
                                     size="icon"
-                                    onClick={() => setStatus("completed")}
+                                    onClick={handleEndInterview}
+                                    disabled={endingInterview}
                                     title="End Interview"
                                 >
-                                    <StopCircle className="h-4 w-4" />
+                                    <StopCircle className={`h-4 w-4 ${endingInterview ? "animate-spin" : ""}`} />
                                 </Button>
                             )}
                         </div>
@@ -244,7 +414,7 @@ export default function InterviewRoomPage() {
                                         <User className="h-5 w-5 text-primary" />
                                     </div>
                                     <div>
-                                        <p className="font-medium text-sm">Candidate</p>
+                                        <p className="font-medium text-sm">{meta.candidateName}</p>
                                         <p className="text-xs text-muted-foreground">
                                             Interview Session
                                         </p>
@@ -260,9 +430,11 @@ export default function InterviewRoomPage() {
                                     <p className="text-xs font-medium">Role Details</p>
                                 </div>
                                 <div className="space-y-1 text-xs text-muted-foreground">
-                                    <p><strong className="text-foreground">Position:</strong> Senior Frontend Engineer</p>
-                                    <p><strong className="text-foreground">Department:</strong> Engineering</p>
-                                    <p><strong className="text-foreground">Duration:</strong> 30 minutes</p>
+                                    <p><strong className="text-foreground">Position:</strong> {meta.jobTitle}</p>
+                                    {meta.department && (
+                                        <p><strong className="text-foreground">Department:</strong> {meta.department}</p>
+                                    )}
+                                    <p><strong className="text-foreground">Duration:</strong> {meta.duration} minutes</p>
                                 </div>
                             </CardContent>
                         </Card>
@@ -272,20 +444,12 @@ export default function InterviewRoomPage() {
                                 <p className="text-xs font-medium">Interview Progress</p>
                                 <div className="h-2 rounded-full bg-muted overflow-hidden">
                                     <div
-                                        className="h-full gradient-bg transition-all duration-500 rounded-full"
-                                        style={{
-                                            width: `${Math.min(
-                                                ((aiResponseIndex + 1) / (aiResponses.length + 1)) * 100,
-                                                100
-                                            )}%`,
-                                        }}
+                                        className={`h-full transition-all duration-500 rounded-full ${timeUp ? "bg-red-500" : timeWarning ? "bg-amber-500" : "gradient-bg"}`}
+                                        style={{ width: `${progressPercent}%` }}
                                     />
                                 </div>
                                 <p className="text-[10px] text-muted-foreground text-right">
-                                    {Math.round(
-                                        ((aiResponseIndex + 1) / (aiResponses.length + 1)) * 100
-                                    )}
-                                    % complete
+                                    {Math.round(progressPercent)}% complete
                                 </p>
                             </CardContent>
                         </Card>
