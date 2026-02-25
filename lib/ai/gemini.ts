@@ -8,7 +8,9 @@ if (!apiKey) {
 
 const genAI = new GoogleGenerativeAI(apiKey || "");
 
-export function getModel(modelName = "gemini-2.0-flash"): GenerativeModel {
+export function getModel(
+  modelName = "gemini-3-flash-preview",
+): GenerativeModel {
   return genAI.getGenerativeModel({ model: modelName });
 }
 
@@ -18,7 +20,7 @@ export function getModel(modelName = "gemini-2.0-flash"): GenerativeModel {
  */
 export async function generateJSON<T>(
   prompt: string,
-  modelName = "gemini-2.0-flash",
+  modelName = "gemini-3-flash-preview",
 ): Promise<T> {
   const model = getModel(modelName);
   const result = await model.generateContent({
@@ -37,7 +39,7 @@ export async function generateJSON<T>(
  */
 export function createChatSession(
   systemInstruction: string,
-  modelName = "gemini-2.0-flash",
+  modelName = "gemini-3-flash-preview",
 ) {
   const model = genAI.getGenerativeModel({
     model: modelName,

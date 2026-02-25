@@ -175,36 +175,52 @@ export default async function JobDetailPage({
                                     </TableHeader>
                                     <TableBody>
                                         {jobApplications.map((app) => (
-                                            <TableRow key={app.id} className="cursor-pointer hover:bg-muted/50">
+                                            <TableRow
+                                                key={app.id}
+                                                className="group cursor-pointer hover:bg-muted/50 transition-colors"
+                                            >
                                                 <TableCell>
-                                                    <div className="flex items-center gap-3">
-                                                        <Avatar className="h-8 w-8">
+                                                    <Link href={`/application/${app.id}`} className="flex items-center gap-3">
+                                                        <Avatar className="h-8 w-8 ring-1 ring-border/50 group-hover:ring-primary/30 transition-all">
                                                             <AvatarFallback className="bg-primary/10 text-primary text-xs font-semibold">
                                                                 {getInitials(app.name)}
                                                             </AvatarFallback>
                                                         </Avatar>
                                                         <div>
-                                                            <p className="font-medium text-sm">{app.name}</p>
+                                                            <p className="font-semibold text-sm group-hover:text-primary transition-colors">{app.name}</p>
                                                             <p className="text-xs text-muted-foreground">{app.email}</p>
                                                         </div>
-                                                    </div>
+                                                    </Link>
                                                 </TableCell>
                                                 <TableCell>
-                                                    {app.score != null ? (
-                                                        <span className={`font-semibold text-sm ${app.score >= 75 ? "text-emerald-600" : app.score >= 50 ? "text-yellow-600" : "text-red-500"}`}>
-                                                            {app.score}%
-                                                        </span>
-                                                    ) : (
-                                                        <span className="text-xs text-muted-foreground">Pending</span>
-                                                    )}
+                                                    <Link href={`/application/${app.id}`} className="flex items-center gap-2">
+                                                        {app.score != null ? (
+                                                            <>
+                                                                <span className={`font-bold text-sm ${app.score >= 80 ? "text-emerald-600" : app.score >= 60 ? "text-yellow-600" : "text-red-500"}`}>
+                                                                    {app.score}%
+                                                                </span>
+                                                                {app.score >= 85 && (
+                                                                    <Badge className="bg-emerald-500/10 text-emerald-700 border-emerald-500/20 text-[10px] h-4 px-1.5 uppercase font-bold tracking-wider">
+                                                                        Top Match
+                                                                    </Badge>
+                                                                )}
+                                                            </>
+                                                        ) : (
+                                                            <span className="text-xs text-muted-foreground italic">Calculating...</span>
+                                                        )}
+                                                    </Link>
                                                 </TableCell>
                                                 <TableCell>
-                                                    <Badge variant="secondary" className={`capitalize text-xs ${statusColors[app.status] || ""}`}>
-                                                        {app.status}
-                                                    </Badge>
+                                                    <Link href={`/application/${app.id}`}>
+                                                        <Badge variant="secondary" className={`capitalize text-[10px] font-bold px-2 py-0.5 rounded-full ${statusColors[app.status] || ""}`}>
+                                                            {app.status}
+                                                        </Badge>
+                                                    </Link>
                                                 </TableCell>
                                                 <TableCell className="text-sm text-muted-foreground">
-                                                    {formatDate(new Date(app.createdAt))}
+                                                    <Link href={`/application/${app.id}`} className="block">
+                                                        {formatDate(new Date(app.createdAt))}
+                                                    </Link>
                                                 </TableCell>
                                             </TableRow>
                                         ))}
@@ -218,25 +234,61 @@ export default async function JobDetailPage({
                 {/* Job Details Tab */}
                 <TabsContent value="details" className="mt-4">
                     <Card>
-                        <CardContent className="space-y-6 pt-6">
-                            {job.description && (
-                                <div>
-                                    <h3 className="font-semibold text-sm mb-2">Description</h3>
-                                    <p className="text-sm text-muted-foreground whitespace-pre-wrap">{job.description}</p>
+                        <CardContent className="space-y-8 pt-6">
+                            {/* AI Parsed Highlights (if available) */}
+                            {job.parsedJd && (
+                                <div className="grid gap-6 sm:grid-cols-2">
+                                    <div className="space-y-3">
+                                        <h3 className="font-bold text-sm flex items-center gap-2">
+                                            <div className="h-1.5 w-1.5 rounded-full bg-primary" />
+                                            Required Skills
+                                        </h3>
+                                        <div className="flex flex-wrap gap-2">
+                                            {(job.parsedJd as any).required_skills?.map((skill: string) => (
+                                                <Badge key={skill} variant="secondary" className="bg-primary/5 text-primary border-primary/10 font-medium">
+                                                    {skill}
+                                                </Badge>
+                                            ))}
+                                        </div>
+                                    </div>
+                                    <div className="space-y-3">
+                                        <h3 className="font-bold text-sm flex items-center gap-2">
+                                            <div className="h-1.5 w-1.5 rounded-full bg-violet-400" />
+                                            Preferred Skills
+                                        </h3>
+                                        <div className="flex flex-wrap gap-2">
+                                            {(job.parsedJd as any).preferred_skills?.map((skill: string) => (
+                                                <Badge key={skill} variant="outline" className="text-muted-foreground border-border font-medium">
+                                                    {skill}
+                                                </Badge>
+                                            ))}
+                                        </div>
+                                    </div>
                                 </div>
                             )}
-                            {job.requirements && (
-                                <div>
-                                    <h3 className="font-semibold text-sm mb-2">Requirements</h3>
-                                    <p className="text-sm text-muted-foreground whitespace-pre-wrap">{job.requirements}</p>
+
+                            <div className="grid gap-8 md:grid-cols-2">
+                                {job.description && (
+                                    <div className="space-y-3">
+                                        <h3 className="font-bold text-sm text-foreground/80">Full Description</h3>
+                                        <p className="text-sm text-muted-foreground whitespace-pre-wrap leading-relaxed">{job.description}</p>
+                                    </div>
+                                )}
+                                <div className="space-y-6">
+                                    {job.requirements && (
+                                        <div className="space-y-3">
+                                            <h3 className="font-bold text-sm text-foreground/80">Requirements</h3>
+                                            <p className="text-sm text-muted-foreground whitespace-pre-wrap">{job.requirements}</p>
+                                        </div>
+                                    )}
+                                    {job.responsibilities && (
+                                        <div className="space-y-3">
+                                            <h3 className="font-bold text-sm text-foreground/80">Responsibilities</h3>
+                                            <p className="text-sm text-muted-foreground whitespace-pre-wrap">{job.responsibilities}</p>
+                                        </div>
+                                    )}
                                 </div>
-                            )}
-                            {job.responsibilities && (
-                                <div>
-                                    <h3 className="font-semibold text-sm mb-2">Responsibilities</h3>
-                                    <p className="text-sm text-muted-foreground whitespace-pre-wrap">{job.responsibilities}</p>
-                                </div>
-                            )}
+                            </div>
                         </CardContent>
                     </Card>
                 </TabsContent>

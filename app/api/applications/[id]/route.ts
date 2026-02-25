@@ -118,6 +118,9 @@ export async function PATCH(
         ...(body.matchScore !== undefined && {
           matchScore: Number(body.matchScore),
         }),
+        ...(body.cvParsedData !== undefined && {
+          cvParsedData: body.cvParsedData,
+        }),
       })
       .where(eq(applications.id, id))
       .returning();
