@@ -1,9 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
+import { extractTextFromFile, parseCVText } from "@/lib/ai/parse-cv";
+import { db } from "@/utils/db";
+import { applications } from "@/utils/db/schema";
+import { eq } from "drizzle-orm";
 
 export async function POST(request: NextRequest) {
   try {
     const formData = await request.formData();
     const file = formData.get("file") as File | null;
+    const applicationId = formData.get("applicationId") as string | null;
 
     if (!file) {
       return NextResponse.json({ error: "No file uploaded" }, { status: 400 });
@@ -31,39 +36,21 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Stub: return mock parsed data
-    const parsedData = {
-      name: "Jane Smith",
-      email: "jane@example.com",
-      phone: "+1 (555) 123-4567",
-      skills: [
-        "React",
-        "TypeScript",
-        "Next.js",
-        "CSS",
-        "Node.js",
-        "PostgreSQL",
-      ],
-      experience: [
-        {
-          title: "Senior Frontend Engineer",
-          company: "TechCorp",
-          duration: "2021 – Present",
-        },
-        {
-          title: "Frontend Developer",
-          company: "StartupXYZ",
-          duration: "2018 – 2021",
-        },
-      ],
-      education: [
-        {
-          degree: "B.S. Computer Science",
-          institution: "Stanford University",
-          year: "2018",
-        },
-      ],
-    };
+    // Extract text from file
+    const arrayBuffer = await file.arrayBuffer();
+    const buffer = Buffer.from(arrayBuffer);
+    const text = await extractTextFromFile(buffer, file.type);
+
+    // Parse extracted text with AI
+    const parsedData = await parseCVText(text);
+
+    // If applicationId provided, save parsed data to application
+    if (applicationId) {
+      await db
+        .update(applications)
+        .set({ cvParsedData: parsedData })
+        .where(eq(applications.id, applicationId));
+    }
 
     return NextResponse.json({
       success: true,
