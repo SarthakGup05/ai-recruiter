@@ -3,6 +3,7 @@ import { db } from "@/utils/db";
 import { jobs, applications } from "@/utils/db/schema";
 import { eq, desc, sql, count } from "drizzle-orm";
 import { getCurrentUser } from "@/lib/auth";
+import { parseJobDescription } from "@/lib/ai/parse-jd";
 
 export async function GET() {
   try {
@@ -100,6 +101,20 @@ export async function POST(request: NextRequest) {
         publicSlug,
       })
       .returning();
+
+    // Fire-and-forget: parse JD in background so the response isn't delayed
+    parseJobDescription({
+      title,
+      description,
+      requirements,
+      responsibilities,
+    })
+      .then(async (parsedJd) => {
+        await db.update(jobs).set({ parsedJd }).where(eq(jobs.id, newJob.id));
+      })
+      .catch((err) => {
+        console.error("Background JD parse failed:", err);
+      });
 
     return NextResponse.json({ job: newJob }, { status: 201 });
   } catch (error) {

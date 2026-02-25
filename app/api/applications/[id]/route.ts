@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/utils/db";
-import { applications } from "@/utils/db/schema";
-import { eq } from "drizzle-orm";
+import { applications, jobs, interviews, evaluations } from "@/utils/db/schema";
+import { eq, desc } from "drizzle-orm";
 
 export async function GET(
   _request: NextRequest,
@@ -23,7 +23,44 @@ export async function GET(
       );
     }
 
-    return NextResponse.json({ application });
+    // Fetch job info
+    const [job] = await db
+      .select({
+        id: jobs.id,
+        title: jobs.title,
+        matchThreshold: jobs.matchThreshold,
+        interviewDuration: jobs.interviewDuration,
+      })
+      .from(jobs)
+      .where(eq(jobs.id, application.jobId))
+      .limit(1);
+
+    // Fetch interviews for this application
+    const interviewList = await db
+      .select()
+      .from(interviews)
+      .where(eq(interviews.applicationId, id))
+      .orderBy(desc(interviews.createdAt));
+
+    // Fetch evaluations for completed interviews
+    const evaluationList = [];
+    for (const interview of interviewList) {
+      const [evaluation] = await db
+        .select()
+        .from(evaluations)
+        .where(eq(evaluations.interviewId, interview.id))
+        .limit(1);
+      if (evaluation) {
+        evaluationList.push({ ...evaluation, interviewId: interview.id });
+      }
+    }
+
+    return NextResponse.json({
+      application,
+      job: job || null,
+      interviews: interviewList,
+      evaluations: evaluationList,
+    });
   } catch (error) {
     console.error("Get application error:", error);
     return NextResponse.json(
