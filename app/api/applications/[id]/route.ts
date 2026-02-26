@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/utils/db";
 import { applications, jobs, interviews, evaluations } from "@/utils/db/schema";
 import { eq, desc } from "drizzle-orm";
+import { sendStatusEmail } from "@/lib/email";
 
 export async function GET(
   _request: NextRequest,
@@ -99,7 +100,13 @@ export async function PATCH(
     }
 
     const [existing] = await db
-      .select({ id: applications.id })
+      .select({
+        id: applications.id,
+        email: applications.email,
+        candidateName: applications.candidateName,
+        jobId: applications.jobId,
+        currentStatus: applications.status,
+      })
       .from(applications)
       .where(eq(applications.id, id))
       .limit(1);
@@ -110,6 +117,12 @@ export async function PATCH(
         { status: 404 },
       );
     }
+
+    const [job] = await db
+      .select({ title: jobs.title })
+      .from(jobs)
+      .where(eq(jobs.id, existing.jobId))
+      .limit(1);
 
     const [updated] = await db
       .update(applications)
@@ -124,6 +137,17 @@ export async function PATCH(
       })
       .where(eq(applications.id, id))
       .returning();
+
+    // Send email notification if status changed
+    if (status && status !== existing.currentStatus && job) {
+      // Fire and forget so we don't block the API response
+      sendStatusEmail(
+        existing.email,
+        existing.candidateName,
+        job.title,
+        status,
+      ).catch(console.error);
+    }
 
     return NextResponse.json({ application: updated });
   } catch (error) {

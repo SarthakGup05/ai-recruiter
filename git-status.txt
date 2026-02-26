@@ -1,0 +1,11 @@
+ M app/(recruiter)/job/[id]/page.tsx
+ M app/api/applications/[id]/route.ts
+ M app/api/public/jobs/[slug]/route.ts
+ M components/jobs-list.tsx
+ M components/kanban-board.tsx
+ M package-lock.json
+ M package.json
+ M utils/db/schema.ts
+?? components/applications-table.tsx
+?? lib/email.ts
+?? utils/db/migrations/
