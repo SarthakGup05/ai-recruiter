@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/utils/db";
 import { jobs } from "@/utils/db/schema";
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 
 export async function GET(
   _request: NextRequest,
@@ -32,6 +32,12 @@ export async function GET(
     if (!job) {
       return NextResponse.json({ error: "Job not found" }, { status: 404 });
     }
+
+    // Increment views in the background
+    await db
+      .update(jobs)
+      .set({ views: sql`${jobs.views} + 1` })
+      .where(eq(jobs.id, job.id));
 
     return NextResponse.json({ job });
   } catch (error) {

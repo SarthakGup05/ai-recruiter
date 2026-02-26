@@ -230,7 +230,7 @@ export function JobsList({ initialJobs }: JobsListProps) {
                                                     )}
                                                     {job.status === "active" && (
                                                         <DropdownMenuItem
-                                                            onClick={() => handleStatusChange(job.id, "closed")}
+                                                            onClick={() => handleStatusChange(job.id, "draft")}
                                                             className="flex items-center cursor-pointer font-medium text-amber-600 hover:text-amber-700"
                                                         >
                                                             <Archive className="mr-2 h-4 w-4" /> Close for Applications
