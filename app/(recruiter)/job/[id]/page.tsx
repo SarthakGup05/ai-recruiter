@@ -18,6 +18,7 @@ import { getCurrentUser } from "@/lib/auth";
 import { db } from "@/utils/db";
 import { jobs, applications } from "@/utils/db/schema";
 import { eq, and, desc } from "drizzle-orm";
+import { DuplicateJobButton } from "@/components/duplicate-job-button";
 
 const statusColors: Record<string, string> = {
     applied: "bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300",
@@ -136,9 +137,12 @@ export default async function JobDetailPage({
                             </Link>
                         </Button>
                     )}
-                    <Button variant="outline" size="sm">
-                        <Pencil className="mr-2 h-3.5 w-3.5" />
-                        Edit
+                    <DuplicateJobButton jobId={job.id} />
+                    <Button variant="outline" size="sm" asChild>
+                        <Link href={`/job/${job.id}/edit`}>
+                            <Pencil className="mr-2 h-3.5 w-3.5" />
+                            Edit
+                        </Link>
                     </Button>
                 </div>
             </div>
