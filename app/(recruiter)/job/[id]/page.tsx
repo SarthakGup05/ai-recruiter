@@ -19,6 +19,18 @@ import { db } from "@/utils/db";
 import { jobs, applications } from "@/utils/db/schema";
 import { eq, and, desc } from "drizzle-orm";
 import { DuplicateJobButton } from "@/components/duplicate-job-button";
+import { KanbanBoard } from "@/components/kanban-board";
+import { ApplicationsTable } from "@/components/applications-table";
+
+const PIPELINE_STATUSES = [
+    { id: "applied", title: "Applied", color: "#6366f1" },
+    { id: "matched", title: "Matched", color: "#8b5cf6" },
+    { id: "scheduled", title: "Scheduled", color: "#14b8a6" },
+    { id: "interviewed", title: "Interviewed", color: "#10b981" },
+    { id: "decision", title: "Waitlist", color: "#f59e0b" },
+    { id: "hired", title: "Hired", color: "#22c55e" },
+    { id: "rejected", title: "Rejected", color: "#ef4444" },
+];
 
 const statusColors: Record<string, string> = {
     applied: "bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300",
@@ -85,6 +97,19 @@ export default async function JobDetailPage({
             : job.status === "draft"
                 ? "bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300"
                 : "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400";
+
+    const kanbanColumns = PIPELINE_STATUSES.map((status) => ({
+        ...status,
+        candidates: jobApplications
+            .filter((app) => app.status === status.id)
+            .map((app) => ({
+                id: app.id,
+                name: app.name,
+                email: app.email,
+                score: app.score ?? undefined,
+                appliedAt: formatDate(new Date(app.createdAt)),
+            })),
+    }));
 
     return (
         <div className="space-y-6">
@@ -153,6 +178,7 @@ export default async function JobDetailPage({
                     <TabsTrigger value="applications">
                         Applications ({jobApplications.length})
                     </TabsTrigger>
+                    <TabsTrigger value="pipeline">Pipeline Board</TabsTrigger>
                     <TabsTrigger value="details">Job Details</TabsTrigger>
                     <TabsTrigger value="settings">Settings</TabsTrigger>
                 </TabsList>
@@ -161,78 +187,14 @@ export default async function JobDetailPage({
                 <TabsContent value="applications" className="mt-4">
                     <Card>
                         <CardContent className="p-0">
-                            {jobApplications.length === 0 ? (
-                                <div className="py-12 text-center text-muted-foreground">
-                                    <Users className="mx-auto mb-3 h-10 w-10 opacity-40" />
-                                    <p className="font-medium">No applications yet</p>
-                                    <p className="text-sm">Applications will appear here as candidates apply.</p>
-                                </div>
-                            ) : (
-                                <Table>
-                                    <TableHeader>
-                                        <TableRow>
-                                            <TableHead>Candidate</TableHead>
-                                            <TableHead>Match Score</TableHead>
-                                            <TableHead>Status</TableHead>
-                                            <TableHead>Applied</TableHead>
-                                        </TableRow>
-                                    </TableHeader>
-                                    <TableBody>
-                                        {jobApplications.map((app) => (
-                                            <TableRow
-                                                key={app.id}
-                                                className="group cursor-pointer hover:bg-muted/50 transition-colors"
-                                            >
-                                                <TableCell>
-                                                    <Link href={`/application/${app.id}`} className="flex items-center gap-3">
-                                                        <Avatar className="h-8 w-8 ring-1 ring-border/50 group-hover:ring-primary/30 transition-all">
-                                                            <AvatarFallback className="bg-primary/10 text-primary text-xs font-semibold">
-                                                                {getInitials(app.name)}
-                                                            </AvatarFallback>
-                                                        </Avatar>
-                                                        <div>
-                                                            <p className="font-semibold text-sm group-hover:text-primary transition-colors">{app.name}</p>
-                                                            <p className="text-xs text-muted-foreground">{app.email}</p>
-                                                        </div>
-                                                    </Link>
-                                                </TableCell>
-                                                <TableCell>
-                                                    <Link href={`/application/${app.id}`} className="flex items-center gap-2">
-                                                        {app.score != null ? (
-                                                            <>
-                                                                <span className={`font-bold text-sm ${app.score >= 80 ? "text-emerald-600" : app.score >= 60 ? "text-yellow-600" : "text-red-500"}`}>
-                                                                    {app.score}%
-                                                                </span>
-                                                                {app.score >= 85 && (
-                                                                    <Badge className="bg-emerald-500/10 text-emerald-700 border-emerald-500/20 text-[10px] h-4 px-1.5 uppercase font-bold tracking-wider">
-                                                                        Top Match
-                                                                    </Badge>
-                                                                )}
-                                                            </>
-                                                        ) : (
-                                                            <span className="text-xs text-muted-foreground italic">Calculating...</span>
-                                                        )}
-                                                    </Link>
-                                                </TableCell>
-                                                <TableCell>
-                                                    <Link href={`/application/${app.id}`}>
-                                                        <Badge variant="secondary" className={`capitalize text-[10px] font-bold px-2 py-0.5 rounded-full ${statusColors[app.status] || ""}`}>
-                                                            {app.status}
-                                                        </Badge>
-                                                    </Link>
-                                                </TableCell>
-                                                <TableCell className="text-sm text-muted-foreground">
-                                                    <Link href={`/application/${app.id}`} className="block">
-                                                        {formatDate(new Date(app.createdAt))}
-                                                    </Link>
-                                                </TableCell>
-                                            </TableRow>
-                                        ))}
-                                    </TableBody>
-                                </Table>
-                            )}
+                            <ApplicationsTable applications={jobApplications as any} />
                         </CardContent>
                     </Card>
+                </TabsContent>
+
+                {/* Pipeline Board Tab */}
+                <TabsContent value="pipeline" className="mt-4">
+                    <KanbanBoard columns={kanbanColumns} />
                 </TabsContent>
 
                 {/* Job Details Tab */}
