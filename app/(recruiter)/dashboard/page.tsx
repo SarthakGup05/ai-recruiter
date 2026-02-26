@@ -7,7 +7,9 @@ import { Briefcase, Users, CalendarCheck, TrendingUp, Plus } from "lucide-react"
 import { getCurrentUser } from "@/lib/auth";
 import { db } from "@/utils/db";
 import { jobs, applications, interviews } from "@/utils/db/schema";
-import { eq, count, avg, sql, and, inArray } from "drizzle-orm";
+import { eq, count, avg, sql, and, gte } from "drizzle-orm";
+import { DashboardFilters } from "@/components/dashboard-filters";
+import { ExportButton } from "@/components/export-button";
 
 const PIPELINE_STATUSES = [
     { id: "applied", title: "Applied", color: "#6366f1" },
@@ -17,15 +19,21 @@ const PIPELINE_STATUSES = [
     { id: "decision", title: "Decision", color: "#f59e0b" },
 ] as const;
 
-export default async function DashboardPage() {
+export default async function DashboardPage(props: { searchParams: Promise<{ period?: string }> }) {
+    const searchParams = await props.searchParams;
+    const period = searchParams?.period || "all";
+
     const user = await getCurrentUser();
     if (!user) redirect("/login");
 
-    // ── Fetch all stats in parallel ──────────────────────────────────────────
-    const userJobIds = db
-        .select({ id: jobs.id })
-        .from(jobs)
-        .where(eq(jobs.recruiterId, user.id));
+    let dateConstraint = null;
+    if (period !== "all") {
+        const now = new Date();
+        if (period === "7d") dateConstraint = new Date(now.setDate(now.getDate() - 7));
+        else if (period === "30d") dateConstraint = new Date(now.setDate(now.getDate() - 30));
+        else if (period === "90d") dateConstraint = new Date(now.setDate(now.getDate() - 90));
+        else if (period === "1y") dateConstraint = new Date(now.setFullYear(now.getFullYear() - 1));
+    }
 
     // ── Fetch all stats ─────────────────────────────────────────────────────
     const [
@@ -42,14 +50,24 @@ export default async function DashboardPage() {
                 active: sql<number>`cast(count(*) filter (where ${jobs.status} = 'active') as int)`,
             })
             .from(jobs)
-            .where(eq(jobs.recruiterId, user.id)),
+            .where(
+                and(
+                    eq(jobs.recruiterId, user.id),
+                    dateConstraint ? gte(jobs.createdAt, dateConstraint) : undefined
+                )
+            ),
 
         // Total applications for this recruiter's jobs
         db
             .select({ total: count() })
             .from(applications)
             .innerJoin(jobs, eq(applications.jobId, jobs.id))
-            .where(eq(jobs.recruiterId, user.id)),
+            .where(
+                and(
+                    eq(jobs.recruiterId, user.id),
+                    dateConstraint ? gte(applications.createdAt, dateConstraint) : undefined
+                )
+            ),
 
         // Completed/Scheduled interviews
         db
@@ -60,7 +78,12 @@ export default async function DashboardPage() {
             .from(interviews)
             .innerJoin(applications, eq(interviews.applicationId, applications.id))
             .innerJoin(jobs, eq(applications.jobId, jobs.id))
-            .where(eq(jobs.recruiterId, user.id)),
+            .where(
+                and(
+                    eq(jobs.recruiterId, user.id),
+                    dateConstraint ? gte(interviews.createdAt, dateConstraint) : undefined
+                )
+            ),
 
         // Average match score
         db
@@ -71,6 +94,7 @@ export default async function DashboardPage() {
                 and(
                     eq(jobs.recruiterId, user.id),
                     sql`${applications.matchScore} is not null`,
+                    dateConstraint ? gte(applications.createdAt, dateConstraint) : undefined
                 ),
             ),
 
@@ -86,7 +110,12 @@ export default async function DashboardPage() {
             })
             .from(applications)
             .innerJoin(jobs, eq(applications.jobId, jobs.id))
-            .where(eq(jobs.recruiterId, user.id)),
+            .where(
+                and(
+                    eq(jobs.recruiterId, user.id),
+                    dateConstraint ? gte(applications.createdAt, dateConstraint) : undefined
+                )
+            ),
     ]);
 
     // ── Derive stat card values ──────────────────────────────────────────────
@@ -135,12 +164,16 @@ export default async function DashboardPage() {
                         Overview of your recruitment pipeline
                     </p>
                 </div>
-                <Button asChild className="gradient-bg border-0 text-white hover:opacity-90 w-full sm:w-auto">
-                    <Link href="/job/new">
-                        <Plus className="mr-2 h-4 w-4" />
-                        Post New Job
-                    </Link>
-                </Button>
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                    <DashboardFilters />
+                    <ExportButton />
+                    <Button asChild className="gradient-bg border-0 text-white hover:opacity-90 w-full sm:w-auto">
+                        <Link href="/job/new">
+                            <Plus className="mr-2 h-4 w-4" />
+                            Post New Job
+                        </Link>
+                    </Button>
+                </div>
             </div>
 
             {/* Stat Cards */}
