@@ -95,6 +95,7 @@ export const jobs = pgTable("jobs", {
     key_responsibilities: string[];
   }>(),
   status: jobStatusEnum("status").notNull().default("draft"),
+  views: integer("views").notNull().default(0),
   publicSlug: varchar("public_slug", { length: 64 }).unique(),
   createdAt: timestamp("created_at", { withTimezone: true })
     .notNull()
