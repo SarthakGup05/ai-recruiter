@@ -2,22 +2,14 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { StatCard } from "@/components/stat-card";
-import { KanbanBoard, type KanbanColumn } from "@/components/kanban-board";
+import { RecentApplications } from "@/components/recent-applications";
 import { Briefcase, Users, CalendarCheck, TrendingUp, Plus } from "lucide-react";
 import { getCurrentUser } from "@/lib/auth";
 import { db } from "@/utils/db";
 import { jobs, applications, interviews } from "@/utils/db/schema";
-import { eq, count, avg, sql, and, gte } from "drizzle-orm";
+import { eq, count, avg, sql, and, gte, desc } from "drizzle-orm";
 import { DashboardFilters } from "@/components/dashboard-filters";
 import { ExportButton } from "@/components/export-button";
-
-const PIPELINE_STATUSES = [
-    { id: "applied", title: "Applied", color: "#6366f1" },
-    { id: "matched", title: "Matched", color: "#8b5cf6" },
-    { id: "scheduled", title: "Scheduled", color: "#06b6d4" },
-    { id: "interviewed", title: "Interviewed", color: "#10b981" },
-    { id: "decision", title: "Decision", color: "#f59e0b" },
-] as const;
 
 export default async function DashboardPage(props: { searchParams: Promise<{ period?: string }> }) {
     const searchParams = await props.searchParams;
@@ -98,7 +90,7 @@ export default async function DashboardPage(props: { searchParams: Promise<{ per
                 ),
             ),
 
-        // Pipeline: applications grouped by status for kanban
+        // Pipeline: recent applications for the table
         db
             .select({
                 id: applications.id,
@@ -115,7 +107,9 @@ export default async function DashboardPage(props: { searchParams: Promise<{ per
                     eq(jobs.recruiterId, user.id),
                     dateConstraint ? gte(applications.createdAt, dateConstraint) : undefined
                 )
-            ),
+            )
+            .orderBy(desc(applications.createdAt))
+            .limit(20),
     ]);
 
     // ── Derive stat card values ──────────────────────────────────────────────
@@ -128,47 +122,32 @@ export default async function DashboardPage(props: { searchParams: Promise<{ per
         ? `${Math.round(Number(avgScoreResult[0].avg))}%`
         : "—";
 
-    // ── Build kanban columns ─────────────────────────────────────────────────
-    function timeAgo(date: Date): string {
-        const diff = Date.now() - date.getTime();
-        const mins = Math.floor(diff / 60000);
-        if (mins < 60) return `${mins}m ago`;
-        const hours = Math.floor(mins / 60);
-        if (hours < 24) return `${hours}h ago`;
-        const days = Math.floor(hours / 24);
-        return `${days}d ago`;
-    }
-
-    const columns: KanbanColumn[] = PIPELINE_STATUSES.map((col) => ({
-        id: col.id,
-        title: col.title,
-        color: col.color,
-        candidates: pipelineData
-            .filter((app) => app.status === col.id)
-            .map((app) => ({
-                id: app.id,
-                name: app.name,
-                email: app.email,
-                score: app.score ?? undefined,
-                appliedAt: timeAgo(new Date(app.createdAt)),
-            })),
+    const formattedCandidates = pipelineData.map((app) => ({
+        id: app.id,
+        name: app.name,
+        email: app.email,
+        score: app.score ?? undefined,
+        status: app.status,
+        createdAt: app.createdAt,
     }));
 
     return (
-        <div className="space-y-6 sm:space-y-8">
+        <div className="flex flex-col gap-8 w-full max-w-7xl mx-auto">
             {/* Header */}
-            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
                 <div>
-                    <h1 className="text-xl sm:text-2xl font-bold">Dashboard</h1>
-                    <p className="text-sm sm:text-base text-muted-foreground">
-                        Overview of your recruitment pipeline
+                    <h1 className="text-2xl font-semibold tracking-tight text-foreground">
+                        Dashboard
+                    </h1>
+                    <p className="text-sm text-muted-foreground mt-1">
+                        Overview of your recruitment pipeline and active roles.
                     </p>
                 </div>
-                <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                <div className="flex flex-wrap items-center gap-3">
                     <DashboardFilters />
                     <ExportButton />
-                    <Button asChild className="gradient-bg border-0 text-white hover:opacity-90 w-full sm:w-auto">
-                        <Link href="/job/new">
+                    <Button asChild className="shrink-0 group">
+                        <Link href="/job/new" className="flex items-center gap-2">
                             <Plus className="mr-2 h-4 w-4" />
                             Post New Job
                         </Link>
@@ -176,8 +155,8 @@ export default async function DashboardPage(props: { searchParams: Promise<{ per
                 </div>
             </div>
 
-            {/* Stat Cards */}
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            {/* Stat Cards - 4 Column Layout for Desktop */}
+            <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
                 <StatCard
                     title="Total Jobs"
                     value={totalJobs}
@@ -202,11 +181,23 @@ export default async function DashboardPage(props: { searchParams: Promise<{ per
                 />
             </div>
 
-            {/* Kanban Board */}
-            <div>
-                <h2 className="mb-4 text-lg font-semibold">Candidate Pipeline</h2>
-                <KanbanBoard columns={columns} />
+            {/* Recent Candidates Box */}
+            <div className="rounded-xl bg-card border border-border shadow-sm p-5 pb-2 flex flex-col min-w-0">
+                <div className="flex items-center justify-between mb-4">
+                    <h2 className="text-lg font-semibold tracking-tight text-foreground">
+                        Recent Applications
+                    </h2>
+                    <Button variant="ghost" size="sm" asChild className="text-xs font-medium text-muted-foreground hover:text-foreground">
+                        <Link href="/jobs">View all candidates &rarr;</Link>
+                    </Button>
+                </div>
+                <RecentApplications candidates={formattedCandidates} />
             </div>
         </div>
     );
+}
+
+// Helper wrapper to avoid React hydration issues with Button asChild
+function ButtonChildWrapper({ children, className }: { children: React.ReactNode, className?: string }) {
+    return <div className={className}>{children}</div>
 }

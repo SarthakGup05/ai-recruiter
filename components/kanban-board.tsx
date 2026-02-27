@@ -71,55 +71,54 @@ function SortableCandidateCard({ candidate }: { candidate: KanbanCandidate }) {
     const style = {
         transform: CSS.Transform.toString(transform),
         transition,
-        opacity: isDragging ? 0.3 : 1,
+        opacity: isDragging ? 0.4 : 1,
+        zIndex: isDragging ? 50 : 1,
     };
 
     return (
         <div ref={setNodeRef} style={style} {...attributes}>
-            <Card
-                className={`group cursor-pointer rounded-xl border-border/50 shadow-sm transition-all duration-200 hover:-translate-y-1 hover:shadow-md hover:border-primary/30 ${isDragging ? "bg-muted cursor-grabbing" : "bg-background"
+            <div
+                className={`group relative rounded-lg border bg-card transition-all duration-200 ${isDragging
+                        ? "border-primary shadow-md cursor-grabbing scale-[1.02]"
+                        : "border-border shadow-sm hover:border-border/80 hover:shadow hover:-translate-y-0.5 cursor-pointer"
                     }`}
             >
-                <CardContent className="p-3.5 relative">
+                <div className="p-3.5 relative">
                     {/* Drag Handle Overlay */}
                     <div
                         {...listeners}
-                        className="absolute inset-y-0 left-0 w-8 flex justify-center pt-4 opacity-0 group-hover:opacity-100 cursor-grab active:cursor-grabbing transition-opacity"
+                        className="absolute inset-y-0 left-0 w-8 flex justify-center pt-5 opacity-0 group-hover:opacity-100 cursor-grab active:cursor-grabbing transition-opacity z-10"
                     >
-                        <GripVertical className="h-4 w-4 text-muted-foreground/50" />
+                        <GripVertical className="h-4 w-4 text-muted-foreground hover:text-foreground transition-colors" />
                     </div>
 
-                    <Link href={`/application/${candidate.id}`} className="block pl-4">
+                    <Link href={`/application/${candidate.id}`} className="block pl-3 relative z-0">
                         {/* Top Row: Avatar & Info */}
-                        <div className="flex items-start justify-between gap-3">
-                            <div className="flex items-start gap-3 min-w-0">
-                                <Avatar className="h-9 w-9 shrink-0 ring-1 ring-border/50">
-                                    <AvatarFallback className="text-[11px] bg-primary/10 text-primary font-semibold">
-                                        {getInitials(candidate.name)}
-                                    </AvatarFallback>
-                                </Avatar>
-                                <div className="min-w-0 flex-1">
-                                    <p className="truncate text-sm font-semibold text-foreground/90 leading-none mb-1.5">
-                                        {candidate.name}
-                                    </p>
-                                    <p className="truncate text-xs text-muted-foreground font-medium">
-                                        {candidate.email}
-                                    </p>
-                                </div>
+                        <div className="flex items-start gap-3 min-w-0 pb-1">
+                            <Avatar className="h-9 w-9 shrink-0 border border-border/50">
+                                <AvatarFallback className="text-[11px] bg-secondary text-secondary-foreground font-medium">
+                                    {getInitials(candidate.name)}
+                                </AvatarFallback>
+                            </Avatar>
+                            <div className="min-w-0 flex-1 pt-0.5">
+                                <p className="truncate text-sm font-medium text-foreground leading-none mb-1.5">
+                                    {candidate.name}
+                                </p>
+                                <p className="truncate text-xs text-muted-foreground">
+                                    {candidate.email}
+                                </p>
                             </div>
                         </div>
 
-                        {/* Bottom Row: Badges & Dates */}
-                        <div className="mt-4 flex items-center justify-between">
+                        {/* Bottom Row: Score & Dates */}
+                        <div className="mt-3 flex items-center justify-between pt-3 border-t border-border/40">
                             {candidate.score !== undefined ? (
-                                <Badge
-                                    variant="outline"
-                                    className={`text-[10px] px-2 py-0.5 font-bold tracking-wide border ${getScoreColor(
-                                        candidate.score
-                                    )}`}
-                                >
-                                    {candidate.score}% MATCH
-                                </Badge>
+                                <div className="flex items-center gap-1.5">
+                                    <div className={`h-1.5 w-1.5 rounded-full ${candidate.score >= 80 ? 'bg-emerald-500' : candidate.score >= 60 ? 'bg-amber-500' : 'bg-rose-500'}`} />
+                                    <span className="text-xs font-medium text-muted-foreground">
+                                        {candidate.score}% Match
+                                    </span>
+                                </div>
                             ) : (
                                 <div />
                             )}
@@ -130,10 +129,25 @@ function SortableCandidateCard({ candidate }: { candidate: KanbanCandidate }) {
                                     {candidate.appliedAt}
                                 </span>
                             </div>
+                            <div className="relative shrink-0">
+                                <Avatar className="h-10 w-10 ring-1 ring-border shadow-sm transition-transform duration-300 group-hover:scale-105">
+                                    <AvatarFallback className="text-[12px] bg-primary/10 text-primary font-semibold">
+                                        {getInitials(candidate.name)}
+                                    </AvatarFallback>
+                                </Avatar>
+                            </div>
+                            <div className="min-w-0 flex-1 pt-0.5">
+                                <p className="truncate text-[14px] font-semibold text-foreground tracking-[-0.01em] mb-1">
+                                    {candidate.name}
+                                </p>
+                                <p className="truncate text-[12px] text-muted-foreground font-medium">
+                                    {candidate.email}
+                                </p>
+                            </div>
                         </div>
                     </Link>
-                </CardContent>
-            </Card>
+                </div>
+            </div>
         </div>
     );
 }
@@ -253,25 +267,19 @@ export function KanbanBoard({ columns: initialColumns }: KanbanBoardProps) {
                     {columns.map((column) => (
                         <div
                             key={column.id}
-                            className="flex w-[85vw] max-w-[320px] sm:w-[320px] shrink-0 snap-start flex-col rounded-2xl border border-border/60 bg-secondary/20 shadow-sm backdrop-blur-xl"
+                            className="flex w-[85vw] max-w-[320px] shrink-0 snap-start flex-col rounded-xl border border-border bg-muted/40"
                         >
                             <div className="flex items-center justify-between p-4 pb-3">
-                                <div className="flex items-center gap-2.5">
-                                    <div className="relative flex h-3 w-3 items-center justify-center">
-                                        <div
-                                            className="absolute h-full w-full rounded-full opacity-40 animate-pulse"
-                                            style={{ backgroundColor: column.color }}
-                                        />
-                                        <div
-                                            className="h-2 w-2 rounded-full z-10"
-                                            style={{ backgroundColor: column.color }}
-                                        />
-                                    </div>
-                                    <h3 className="text-sm font-semibold tracking-tight">
+                                <div className="flex items-center gap-2">
+                                    <div
+                                        className="h-2 w-2 rounded-full"
+                                        style={{ backgroundColor: column.color }}
+                                    />
+                                    <h3 className="text-sm font-semibold tracking-tight text-foreground">
                                         {column.title}
                                     </h3>
                                 </div>
-                                <Badge variant="secondary" className="h-6 px-2 text-xs font-semibold rounded-full bg-background border-border/50">
+                                <Badge variant="secondary" className="h-5 px-1.5 min-w-[20px] flex items-center justify-center text-[10px] font-medium rounded-md">
                                     {column.candidates.length}
                                 </Badge>
                             </div>
@@ -281,14 +289,10 @@ export function KanbanBoard({ columns: initialColumns }: KanbanBoardProps) {
                                 items={column.candidates.map(c => c.id)}
                                 strategy={verticalListSortingStrategy}
                             >
-                                <div className="flex flex-col gap-3 px-3 pb-3 max-h-[70vh] overflow-y-auto [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-border/50">
+                                <div className="flex flex-col gap-2.5 px-3 pb-3 max-h-[calc(100vh-320px)] min-h-[50px] overflow-y-auto [&::-webkit-scrollbar]:w-1 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-border hover:[&::-webkit-scrollbar-thumb]:bg-border/80">
                                     {column.candidates.length === 0 ? (
-                                        <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border/60 bg-background/50 py-10 text-center">
-                                            <div className="h-8 w-8 rounded-full bg-muted flex items-center justify-center mb-3">
-                                                <span className="text-muted-foreground text-xs">0</span>
-                                            </div>
-                                            <p className="text-sm font-medium text-foreground/70">No candidates yet</p>
-                                            <p className="text-xs text-muted-foreground mt-1">Move someone here</p>
+                                        <div className="flex flex-col items-center justify-center rounded-lg border border-dashed border-border/60 bg-transparent py-8 text-center">
+                                            <p className="text-xs font-medium text-muted-foreground">No candidates</p>
                                         </div>
                                     ) : (
                                         column.candidates.map((candidate) => (
