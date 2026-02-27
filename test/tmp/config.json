@@ -1,0 +1,19 @@
+{
+  "status": "commited",
+  "type": "backend",
+  "scope": "codebase",
+  "localEndpoint": "http://localhost:3000",
+  "backendAuthType": "public",
+  "executionArgs": {
+    "projectName": "ai-recruiter",
+    "projectPath": "d:/app/ai-recruiter",
+    "testIds": [],
+    "additionalInstruction": "",
+    "serverMode": "production",
+    "envs": {
+      "API_KEY": "sk-user-HDU00amFDeRWjdYxLhWCKynNUVVh6vph27UkZWGe6deDqvh5UF9KlFnMLhWaOxsUMHqTLJrlCZAfx2jJ120rTp9sHQZwQR_Uj4qkRQZnJIgYp6zNYIOPxBe2U0t8OddApVE"
+    }
+  },
+  "serverPort": 57591,
+  "proxy": "http://57a8831b-b114-495b-a782-0dac1d6df63d:VkQ77b2QqTjCbYFH9dIb6iYKZ0anagdD@tun.testsprite.com:8080"
+}

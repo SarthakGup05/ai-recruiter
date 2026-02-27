@@ -1,0 +1,58 @@
+[
+  {
+    "projectId": "5da06181-7b0c-4955-af54-5f602298fadd",
+    "testId": "24503384-d614-40eb-8e7e-17e34c5923fc",
+    "userId": "f4a8b438-6071-70e7-e11e-6937f77e8908",
+    "title": "TC001-post api auth login with valid credentials",
+    "description": "Test the POST /api/auth/login endpoint with valid user credentials to ensure it returns status 200 and sets the 'hireai-token' cookie for session management.",
+    "code": "import requests\n\nBASE_URL = \"http://localhost:3000\"\nLOGIN_ENDPOINT = \"/api/auth/login\"\nTIMEOUT = 30\n\ndef test_post_api_auth_login_with_valid_credentials():\n    url = BASE_URL + LOGIN_ENDPOINT\n    valid_credentials = {\n        \"email\": \"testuser@example.com\",\n        \"password\": \"TestPassword123!\"\n    }\n\n    try:\n        response = requests.post(url, json=valid_credentials, timeout=TIMEOUT)\n    except requests.RequestException as e:\n        assert False, f\"Request failed: {e}\"\n\n    # Assert status code is 200\n    assert response.status_code == 200, f\"Expected status code 200, got {response.status_code}\"\n\n    # Assert 'hireai-token' cookie is set\n    cookies = response.cookies\n    assert 'hireai-token' in cookies, \"'hireai-token' cookie not found in response\"\n\ntest_post_api_auth_login_with_valid_credentials()",
+    "testStatus": "FAILED",
+    "testError": "Traceback (most recent call last):\n  File \"/var/task/handler.py\", line 258, in run_with_retry\n    exec(code, exec_env)\n  File \"<string>\", line 26, in <module>\n  File \"<string>\", line 20, in test_post_api_auth_login_with_valid_credentials\nAssertionError: Expected status code 200, got 401\n",
+    "testType": "BACKEND",
+    "createFrom": "mcp",
+    "created": "2026-02-27T10:15:00.850Z",
+    "modified": "2026-02-27T10:15:23.796Z"
+  },
+  {
+    "projectId": "5da06181-7b0c-4955-af54-5f602298fadd",
+    "testId": "2b3379d0-5060-434b-b691-e9e15dd53479",
+    "userId": "f4a8b438-6071-70e7-e11e-6937f77e8908",
+    "title": "TC002-post api auth register with valid data",
+    "description": "Test the POST /api/auth/register endpoint with valid registration data (email, password, name) to verify it creates a new user, returns status 201, and sets the 'hireai-token' cookie.",
+    "code": "import requests\nimport uuid\n\nBASE_URL = \"http://localhost:3000\"\nREGISTER_ENDPOINT = \"/api/auth/register\"\nTIMEOUT = 30\n\ndef test_post_api_auth_register_with_valid_data():\n    # Unique email to avoid conflicts\n    unique_email = f\"testuser_{uuid.uuid4().hex[:8]}@example.com\"\n    payload = {\n        \"email\": unique_email,\n        \"password\": \"SafePassw0rd!\",\n        \"name\": \"Test User\"\n    }\n    headers = {\n        \"Content-Type\": \"application/json\"\n    }\n    session = requests.Session()\n    try:\n        response = session.post(\n            BASE_URL + REGISTER_ENDPOINT,\n            json=payload,\n            headers=headers,\n            timeout=TIMEOUT,\n        )\n        # Check status code\n        assert response.status_code == 201, f\"Expected 201, got {response.status_code}\"\n        # Check if 'hireai-token' cookie is set\n        cookies = response.cookies.get_dict()\n        assert \"hireai-token\" in cookies, \"'hireai-token' cookie not set\"\n    finally:\n        # Cleanup: no explicit delete endpoint described, so no cleanup step included\n        pass\n\ntest_post_api_auth_register_with_valid_data()",
+    "testStatus": "PASSED",
+    "testError": "",
+    "testType": "BACKEND",
+    "createFrom": "mcp",
+    "created": "2026-02-27T10:15:00.857Z",
+    "modified": "2026-02-27T10:15:16.043Z"
+  },
+  {
+    "projectId": "5da06181-7b0c-4955-af54-5f602298fadd",
+    "testId": "1f12ba37-5bc7-4f59-b41e-e8da0fc3f04f",
+    "userId": "f4a8b438-6071-70e7-e11e-6937f77e8908",
+    "title": "TC003-post api jobs with authentication and valid payload",
+    "description": "Test the POST /api/jobs endpoint with a valid job payload and authenticated user (with 'hireai-token' cookie) to ensure it creates a new job posting and returns status 201 with job id and slug.",
+    "code": "import requests\n\nBASE_URL = \"http://localhost:3000\"\nREGISTER_ENDPOINT = f\"{BASE_URL}/api/auth/register\"\nLOGIN_ENDPOINT = f\"{BASE_URL}/api/auth/login\"\nJOBS_ENDPOINT = f\"{BASE_URL}/api/jobs\"\n\ndef test_post_api_jobs_with_authentication_and_valid_payload():\n    # Register a new user for testing\n    register_payload = {\n        \"email\": \"testuser_tc003@example.com\",\n        \"password\": \"TestPassword123!\",\n        \"name\": \"Test User TC003\"\n    }\n    try:\n        reg_resp = requests.post(REGISTER_ENDPOINT, json=register_payload, timeout=30)\n        assert reg_resp.status_code == 201, f\"Registration failed with status {reg_resp.status_code}\"\n        assert 'hireai-token' in reg_resp.cookies, \"Registration response missing 'hireai-token' cookie\"\n\n        # Login the user to get authentication cookie\n        login_payload = {\n            \"email\": register_payload[\"email\"],\n            \"password\": register_payload[\"password\"]\n        }\n        login_resp = requests.post(LOGIN_ENDPOINT, json=login_payload, timeout=30)\n        assert login_resp.status_code == 200, f\"Login failed with status {login_resp.status_code}\"\n        assert 'hireai-token' in login_resp.cookies, \"Login response missing 'hireai-token' cookie\"\n        token_cookie = login_resp.cookies.get('hireai-token')\n        assert token_cookie, \"'hireai-token' cookie is empty\"\n\n        # Prepare job payload\n        job_payload = {\n            \"title\": \"Software Engineer\",\n            \"description\": \"Develop and maintain software applications.\",\n            \"location\": \"Remote\",\n            \"type\": \"Full-time\",\n            \"salaryRange\": {\n                \"min\": 60000,\n                \"max\": 90000,\n                \"currency\": \"USD\"\n            },\n            \"requirements\": [\n                \"3+ years experience in software development\",\n                \"Proficiency in Python and JavaScript\"\n            ],\n            \"responsibilities\": [\n                \"Write clean, maintainable code\",\n                \"Participate in code reviews\"\n            ],\n            \"company\": \"HireAI Inc.\"\n        }\n\n        # POST /api/jobs with authentication cookie\n        cookies = {'hireai-token': token_cookie}\n        job_resp = requests.post(JOBS_ENDPOINT, json=job_payload, cookies=cookies, timeout=30)\n        assert job_resp.status_code == 201, f\"Job creation failed with status {job_resp.status_code}\"\n\n        job_resp_json = job_resp.json()\n        # Validate response contains job id and slug\n        assert \"id\" in job_resp_json, \"'id' not found in the response\"\n        assert \"slug\" in job_resp_json, \"'slug' not found in the response\"\n        job_id = job_resp_json[\"id\"]\n\n    finally:\n        # Cleanup: Delete created job and user if applicable\n        # Attempt deleting job if created\n        if 'job_id' in locals():\n            try:\n                delete_resp = requests.delete(f\"{JOBS_ENDPOINT}/{job_id}\", cookies=cookies, timeout=30)\n                # delete may respond with 200 or 204 or may have soft-delete\n                assert delete_resp.status_code in (200, 204), f\"Failed to delete job with status {delete_resp.status_code}\"\n            except Exception:\n                pass\n\n        # Attempt deleting user might not be supported by API, so ignoring\n\ntest_post_api_jobs_with_authentication_and_valid_payload()",
+    "testStatus": "FAILED",
+    "testError": "Traceback (most recent call last):\n  File \"/var/task/handler.py\", line 258, in run_with_retry\n    exec(code, exec_env)\n  File \"<string>\", line 77, in <module>\n  File \"<string>\", line 60, in test_post_api_jobs_with_authentication_and_valid_payload\nAssertionError: 'id' not found in the response\n",
+    "testType": "BACKEND",
+    "createFrom": "mcp",
+    "created": "2026-02-27T10:15:00.862Z",
+    "modified": "2026-02-27T10:15:30.145Z"
+  },
+  {
+    "projectId": "5da06181-7b0c-4955-af54-5f602298fadd",
+    "testId": "1ecc199c-78d3-4620-9cf3-9a1d5e4a1476",
+    "userId": "f4a8b438-6071-70e7-e11e-6937f77e8908",
+    "title": "TC004-get api jobs without authentication",
+    "description": "Test the GET /api/jobs endpoint without authentication to verify if it allows access and returns the list of jobs with status 200.",
+    "code": "import requests\n\nBASE_URL = \"http://localhost:3000\"\nTIMEOUT = 30\n\ndef test_get_api_jobs_without_authentication():\n    url = f\"{BASE_URL}/api/jobs\"\n    try:\n        response = requests.get(url, timeout=TIMEOUT)\n        assert response.status_code == 401, f\"Expected status code 401, got {response.status_code}\"\n    except requests.RequestException as e:\n        assert False, f\"Request failed: {e}\"\n\ntest_get_api_jobs_without_authentication()",
+    "testStatus": "PASSED",
+    "testError": "",
+    "testType": "BACKEND",
+    "createFrom": "mcp",
+    "created": "2026-02-27T10:15:00.869Z",
+    "modified": "2026-02-27T10:15:35.527Z"
+  }
+]

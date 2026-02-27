@@ -1,0 +1,37 @@
+version: "2"
+type: backend
+tech_stack:
+  - typescript
+  - nextjs
+  - postgres
+  - drizzle-orm
+features:
+  - name: Job Management
+    description: CRUD operations for job postings
+    files:
+      - app/api/jobs/route.ts
+      - app/api/jobs/[id]/route.ts
+    endpoints:
+      - method: GET
+        path: /api/jobs
+        description: List jobs
+        auth_required: false
+      - method: POST
+        path: /api/jobs
+        description: Create a job
+        auth_required: true
+  - name: Authentication
+    description: User authentication
+    files:
+      - app/api/auth/login/route.ts
+      - app/api/auth/register/route.ts
+    endpoints:
+      - method: POST
+        path: /api/auth/login
+        description: Log in user
+        auth_required: false
+      - method: POST
+        path: /api/auth/register
+        description: Register user
+        auth_required: false
+known_limitations: []

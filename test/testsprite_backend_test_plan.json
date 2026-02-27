@@ -1,0 +1,22 @@
+[
+  {
+    "id": "TC001",
+    "title": "post api auth login with valid credentials",
+    "description": "Test the POST /api/auth/login endpoint with valid user credentials to ensure it returns status 200 and sets the 'hireai-token' cookie for session management."
+  },
+  {
+    "id": "TC002",
+    "title": "post api auth register with valid data",
+    "description": "Test the POST /api/auth/register endpoint with valid registration data (email, password, name) to verify it creates a new user, returns status 201, and sets the 'hireai-token' cookie."
+  },
+  {
+    "id": "TC003",
+    "title": "post api jobs with authentication and valid payload",
+    "description": "Test the POST /api/jobs endpoint with a valid job payload and authenticated user (with 'hireai-token' cookie) to ensure it creates a new job posting and returns status 201 with job id and slug."
+  },
+  {
+    "id": "TC004",
+    "title": "get api jobs without authentication",
+    "description": "Test the GET /api/jobs endpoint without authentication to verify if it allows access and returns the list of jobs with status 200."
+  }
+]
