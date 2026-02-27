@@ -1,6 +1,6 @@
 # HireAI — PRD Checklist
 
-> Last updated: **2026-02-25**
+> Last updated: **2026-02-27**
 > Update this file daily to track progress.
 
 ---
@@ -89,8 +89,8 @@
 - ✅ Public job listing page (`/careers`)
 - ✅ Job cards with title, location, type, salary
 - ✅ Empty state for no open positions
-- ⬜ Search / filter by department, location, type
-- ⬜ Pagination for large job lists
+- ✅ Search / filter by department, location, type
+- ✅ Pagination for large job lists
 
 ### 3.2 Application Flow
 
@@ -98,9 +98,9 @@
 - ✅ Public API: `GET /api/public/jobs`, `GET /api/public/jobs/[slug]`
 - ✅ Application submission to database
 - ✅ Success confirmation screen
-- ⬜ CV upload to cloud storage (currently client-side only)
-- ⬜ CV parsing integration with `/api/parse-cv`
-- ⬜ Application confirmation email
+- ✅ CV upload to cloud storage (currently client-side only)
+- ✅ CV parsing integration with `/api/parse-cv`
+- ✅ Application confirmation email
 
 ---
 
