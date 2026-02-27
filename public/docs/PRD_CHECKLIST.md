@@ -53,8 +53,8 @@
 - ✅ Real-time data from database (server component)
 - ✅ "Post New Job" button in sidebar
 - ✅ Dashboard search/filter functionality (Jobs and Candidates lists)
-- ⬜ Date range filter for stats
-- ⬜ Export pipeline data (CSV)
+- ✅ Date range filter for stats
+- ✅ Export pipeline data (CSV)
 
 ### 2.2 Job CRUD
 
@@ -65,9 +65,9 @@
 - ✅ API: `GET/POST /api/jobs`, `GET/PATCH/DELETE /api/jobs/[id]`
 - ✅ Soft delete (archive) for jobs
 - ✅ Auto-generated public slug per job
-- ⬜ Edit job page (pre-filled form)
-- ⬜ Duplicate job functionality
-- ⬜ Job analytics (views, application rate)
+- ✅ Edit job page (pre-filled form)
+- ✅ Duplicate job functionality
+- ✅ Job analytics (views, application rate)
 
 ### 2.3 Application Management
 
@@ -75,10 +75,10 @@
 - ✅ Applications table on job detail page
 - ✅ Status badges with color coding
 - ✅ Match score display
-- ⬜ Drag-and-drop kanban for individual job pipeline
-- ⬜ Bulk status update
+- ✅ Drag-and-drop kanban for individual job pipeline
+- ✅ Bulk status update
 - ✅ Application detail modal/page (Fully redesigned with AI insights)
-- ⬜ Email notifications to candidates
+- ✅ Email notifications to candidates
 
 ---
 
