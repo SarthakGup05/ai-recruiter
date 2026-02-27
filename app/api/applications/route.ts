@@ -3,6 +3,7 @@ import { db } from "@/utils/db";
 import { applications, jobs } from "@/utils/db/schema";
 import { eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
+import { sendStatusEmail } from "@/lib/email";
 
 export async function POST(request: NextRequest) {
   try {
@@ -18,7 +19,7 @@ export async function POST(request: NextRequest) {
 
     // Verify the job exists and is active
     const [job] = await db
-      .select({ id: jobs.id, status: jobs.status })
+      .select({ id: jobs.id, status: jobs.status, title: jobs.title })
       .from(jobs)
       .where(eq(jobs.id, jobId))
       .limit(1);
@@ -46,7 +47,15 @@ export async function POST(request: NextRequest) {
       })
       .returning();
 
-    revalidatePath("/dashboard");
+    // Send confirmation email
+    await sendStatusEmail(
+      email.toLowerCase(),
+      candidateName,
+      job.title,
+      "applied",
+    );
+
+    revalidatePath("/dashboard", "layout");
 
     return NextResponse.json({ application }, { status: 201 });
   } catch (error) {

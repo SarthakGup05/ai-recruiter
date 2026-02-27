@@ -19,15 +19,15 @@ export interface ParsedCV {
   soft_indicators: string[];
 }
 
+// @ts-expect-error: No types available for specific file path
+import pdf from "pdf-parse/lib/pdf-parse.js";
+
 /**
  * Extract text from a PDF file buffer.
  */
 async function extractPdfText(buffer: Buffer): Promise<string> {
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const pdfParse = require("pdf-parse") as (
-    buf: Buffer,
-  ) => Promise<{ text: string }>;
-  const data = await pdfParse(buffer);
+  const parse = (pdf as any).default || pdf;
+  const data = await parse(buffer);
   return data.text;
 }
 
